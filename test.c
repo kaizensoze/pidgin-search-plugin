@@ -47,6 +47,7 @@ typedef struct _spellchk spellchk;
 typedef struct {
 	PurpleConversation *conv; // pointer to the conversation 
 	GtkWidget *seperator; // seperator in the conversation 
+    GtkWidget *combo_box;
 	GtkWidget *button; // button in the conversation 
 	GPid pid; // the pid of the score editor 
 	
@@ -57,10 +58,10 @@ typedef struct {
 } MMConversation;
 
 
-static void add_button (MMConversation *mmconv);
+static void add_widgets (MMConversation *mmconv);
 static void remove_widget (GtkWidget *button);
 static void init_conversation (PurpleConversation *conv);
-static void conv_destroyed(PurpleConversation *conv);
+static void conv_destroyed (PurpleConversation *conv);
 
 /* List of sessions */
 static GList *conversations;
@@ -515,7 +516,7 @@ check_range(spellchk *spell, GtkTextBuffer *buffer,
 // *    the current position to check the entire range of inserted text.
 // *
 // * this may be overkill for the common case (inserting one character). 
-/*
+
 static void
 insert_text_before(GtkTextBuffer *buffer, GtkTextIter *iter,
 					gchar *text, gint len, spellchk *spell)
@@ -1082,7 +1083,7 @@ static void on_entry_changed(GtkEditable *editable, gpointer data)
 	gtk_widget_set_sensitive((GtkWidget*)data,
 		non_empty(gtk_entry_get_text(GTK_ENTRY(bad_entry))) &&
 		non_empty(gtk_entry_get_text(GTK_ENTRY(good_entry))));
-}
+}*/
 
 static int
 mmconv_from_conv_loc(PurpleConversation *conv)
@@ -1118,25 +1119,25 @@ static void kill_editor (MMConversation *mmconv)
 		mmconv->pid = 0;
 	}
 }
-*/
-/*
+
 static void conv_destroyed (PurpleConversation *conv)
 {
 	MMConversation *mmconv = mmconv_from_conv(conv);
 	
 	remove_widget(mmconv->button);
+    remove_widget(mmconv->combo_box);
 	remove_widget(mmconv->seperator);
 	if (mmconv->started)
 	{
 		kill_editor(mmconv);
 	}
 	conversations = g_list_remove(conversations, mmconv);
-}*/
+}
 
-static void remove_widget (GtkWidget *button)
+static void remove_widget (GtkWidget *widget)
 {
-	gtk_widget_hide(button);
-	gtk_widget_destroy(button);		
+	gtk_widget_hide(widget);
+	gtk_widget_destroy(widget);
 }
 
 static void search_button_clicked (GtkWidget *widget, gpointer data)
@@ -1164,47 +1165,58 @@ static void search_button_clicked (GtkWidget *widget, gpointer data)
     GtkTextIter end;
 
     GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(gtkconv->imhtml));
+    gchar *text;
 
     //GtkTextMark *sel = gtk_text_buffer_get_selection_bounds(buffer);
     gtk_text_buffer_get_selection_bounds(buffer, &start, &end);
 
     //gtk_text_buffer_get_start_iter(buffer, &start);
     //gtk_text_buffer_get_end_iter(buffer, &end);
-    gchar *text = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
+    text = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
 
     purple_debug_info(TEST_PLUGIN_ID, "selected text: %s\n", text);
     open_url(text);
 }
 
-static void add_button (MMConversation *mmconv)
+// add widgets to convo ui
+static void add_widgets (MMConversation *mmconv)
 {
 	PurpleConversation *conv = mmconv->conv;
 	
-	GtkWidget *button, *image, *sep;
-	gchar *file_path;
+	GtkWidget *sep, *button, *button_image, *combo_box;
+	gchar *button_image_file_path;
 
+	sep = gtk_vseparator_new();
+
+    // setup button
 	button = gtk_button_new();
 	gtk_button_set_relief(GTK_BUTTON(button), GTK_RELIEF_NONE);
-
 	g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(search_button_clicked), mmconv);
-
-	file_path = g_build_filename(DATADIR, "pixmaps", "purple", "buttons",
+	button_image_file_path = g_build_filename(DATADIR, "pixmaps", "purple", "buttons",
 										"search.png", NULL);
-	image = gtk_image_new_from_file(file_path);
-	g_free(file_path);
+	button_image = gtk_image_new_from_file(button_image_file_path);
+	g_free(button_image_file_path);
+	gtk_container_add((GtkContainer *)button, button_image);
 
-	gtk_container_add((GtkContainer *)button, image);
-	
-	sep = gtk_vseparator_new();
+    // setup combo box
+    combo_box = gtk_combo_box_new_text();
+    gtk_combo_box_append_text(GTK_COMBO_BOX (combo_box), "Google");
+    gtk_combo_box_append_text(GTK_COMBO_BOX (combo_box), "Yahoo");
+    gtk_combo_box_append_text(GTK_COMBO_BOX (combo_box), "Answers");
+    gtk_combo_box_append_text (GTK_COMBO_BOX (combo_box), "Wikipedia");
+    gtk_combo_box_set_active(combo_box, 0);
 	
 	mmconv->seperator = sep;
+    mmconv->combo_box = combo_box;
 	mmconv->button = button;
 	
 	gtk_widget_show(sep);
-	gtk_widget_show(image);
+    gtk_widget_show(combo_box);
+	gtk_widget_show(button_image);
 	gtk_widget_show(button);
 	
 	gtk_box_pack_start(GTK_BOX(PIDGIN_CONVERSATION(conv)->toolbar), sep, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(PIDGIN_CONVERSATION(conv)->toolbar), combo_box, FALSE, FALSE, 0);
 	gtk_box_pack_start(GTK_BOX(PIDGIN_CONVERSATION(conv)->toolbar), button, FALSE, FALSE, 0);
 }
 
@@ -1218,7 +1230,7 @@ static void init_conversation (PurpleConversation *conv)
 	mmconv->originator = FALSE;
 	mmconv->requested = FALSE;
 	
-	add_button(mmconv);
+	add_widgets(mmconv);
 	
 	conversations = g_list_append(conversations, mmconv);
 }
@@ -1232,7 +1244,7 @@ plugin_load(PurplePlugin *plugin)
 
     purple_conversation_foreach(init_conversation);
 
-	load_conf();
+	//load_conf();
 
 	/* Listen for any new conversations */
 	conv_list_handle = purple_conversations_get_handle();
@@ -1443,7 +1455,7 @@ get_config_frame(PurplePlugin *plugin)
 
 static PidginPluginUiInfo ui_info =
 {
-	get_config_frame,
+	NULL, //get_config_frame,
 	0, /* page_num (Reserved) */
 
 	/* padding */
