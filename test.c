@@ -71,7 +71,7 @@ PurplePlugin *test_plugin = NULL;
 
 
 static void
-open_url(const gchar *search_term)
+open_url(const gchar *search_term, const gchar *search_engine)
 {
     gchar *url = g_strconcat("http://www.google.com/#hl=en&q=", search_term, NULL);
     purple_debug_info(TEST_PLUGIN_ID, "search_term: %s\n", search_term);
@@ -1165,17 +1165,17 @@ static void search_button_clicked (GtkWidget *widget, gpointer data)
     GtkTextIter end;
 
     GtkTextBuffer *buffer = gtk_text_view_get_buffer(GTK_TEXT_VIEW(gtkconv->imhtml));
-    gchar *text;
+    gchar *text, *search_engine;
 
-    //GtkTextMark *sel = gtk_text_buffer_get_selection_bounds(buffer);
     gtk_text_buffer_get_selection_bounds(buffer, &start, &end);
-
-    //gtk_text_buffer_get_start_iter(buffer, &start);
-    //gtk_text_buffer_get_end_iter(buffer, &end);
     text = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
 
+    search_engine = gtk_combo_box_get_active_text(mmconv->combo_box);
+    
+    purple_debug_info(TEST_PLUGIN_ID, "search engine: %s\n", search_engine);
     purple_debug_info(TEST_PLUGIN_ID, "selected text: %s\n", text);
-    open_url(text);
+
+    open_url(text, search_engine);
 }
 
 // add widgets to convo ui
