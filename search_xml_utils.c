@@ -1,4 +1,4 @@
-#include "internal.h"
+/*#include "internal.h"
 #include "account.h"
 #include "core.h"
 #include "dbus-maybe.h"
@@ -12,7 +12,7 @@
 #include "request.h"
 #include "server.h"
 #include "signals.h"
-#include "status.h"
+#include "status.h"*/
 #include "util.h"
 #include "xmlnode.h"
 
@@ -23,7 +23,7 @@ load_search_provider(gchar *path_to_opensearch_xml)
 
 	//accounts_loaded = TRUE;
 
-	node = purple_util_read_xml_from_file(path_to_opensearch_xml, _("google_search-opensearch"));
+	node = purple_util_read_xml_from_file(path_to_opensearch_xml, _("search_provider"));
 
 	//if (node == NULL)
 		return node;
