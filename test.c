@@ -57,6 +57,12 @@ typedef struct {
 	
 } MMConversation;
 
+typedef struct {
+    gchar *name;
+    gchar *query_url;
+    gchar *icon_url;
+} search_engine;
+
 
 static void add_widgets (MMConversation *mmconv);
 static void remove_widget (GtkWidget *button);
@@ -65,6 +71,9 @@ static void conv_destroyed (PurpleConversation *conv);
 
 /* List of sessions */
 static GList *conversations;
+
+/* Map of search engines */
+static GHashTable *search_engines;
 
 
 PurplePlugin *test_plugin = NULL;
@@ -1239,6 +1248,9 @@ static gboolean
 plugin_load(PurplePlugin *plugin)
 {
 	void *conv_list_handle;
+
+    // TODO: parse search engine xml files
+    search_engines = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL); // NOTE: may need custom function to destroy struct value
 
     test_plugin = plugin;
 
