@@ -260,8 +260,34 @@ static void case_sensitive_toggled(GtkCellRendererToggle *cellrenderertoggle,
 	save_list();
 }
 
-static void list_add_new(void)
+static void add_selected_row_to_list(GtkTreeModel *model, GtkTreePath *path,
+	GtkTreeIter *iter, gpointer data)
 {
+	GtkTreeRowReference *row_reference;
+	GSList **list = (GSList **)data;
+	row_reference = gtk_tree_row_reference_new(model, path);
+	*list = g_slist_prepend(*list, row_reference);
+}
+
+static void remove_row(void *data1, gpointer data2)
+{
+	GtkTreeRowReference *row_reference;
+	GtkTreePath *path;
+	GtkTreeIter iter;
+
+	row_reference = (GtkTreeRowReference *)data1;
+	path = gtk_tree_row_reference_get_path(row_reference);
+
+	if (gtk_tree_model_get_iter(GTK_TREE_MODEL(model), &iter, path))
+		gtk_list_store_remove(model, &iter);
+
+	gtk_tree_path_free(path);
+	gtk_tree_row_reference_free(row_reference);
+}
+
+static void list_add(void)
+{
+    /*
 	GtkTreeIter iter;
 	const char *word = gtk_entry_get_text(GTK_ENTRY(bad_entry));
 	gboolean case_sensitive = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(case_toggle));
@@ -320,7 +346,6 @@ static void list_add_new(void)
 		g_free(tmpword);
 	}
 
-
 	gtk_list_store_append(model, &iter);
 	gtk_list_store_set(model, &iter,
 		BAD_COLUMN, word,
@@ -336,31 +361,7 @@ static void list_add_new(void)
 	gtk_widget_grab_focus(bad_entry);
 
 	save_list();
-}
-
-static void add_selected_row_to_list(GtkTreeModel *model, GtkTreePath *path,
-	GtkTreeIter *iter, gpointer data)
-{
-	GtkTreeRowReference *row_reference;
-	GSList **list = (GSList **)data;
-	row_reference = gtk_tree_row_reference_new(model, path);
-	*list = g_slist_prepend(*list, row_reference);
-}
-
-static void remove_row(void *data1, gpointer data2)
-{
-	GtkTreeRowReference *row_reference;
-	GtkTreePath *path;
-	GtkTreeIter iter;
-
-	row_reference = (GtkTreeRowReference *)data1;
-	path = gtk_tree_row_reference_get_path(row_reference);
-
-	if (gtk_tree_model_get_iter(GTK_TREE_MODEL(model), &iter, path))
-		gtk_list_store_remove(model, &iter);
-
-	gtk_tree_path_free(path);
-	gtk_tree_row_reference_free(row_reference);
+    */
 }
 
 static void list_delete(void)
@@ -695,7 +696,7 @@ static GtkWidget * get_config_frame(PurplePlugin *plugin)
 	ret = gtk_vbox_new(FALSE, PIDGIN_HIG_CAT_SPACE);
 	gtk_container_set_border_width (GTK_CONTAINER(ret), PIDGIN_HIG_BORDER);
 
-	vbox = pidgin_make_frame(ret, _("Text Replacements"));
+	vbox = pidgin_make_frame(ret, _("Search engines"));
 	gtk_container_set_border_width(GTK_CONTAINER(vbox), 4);
 	gtk_widget_show(vbox);
 
@@ -712,6 +713,10 @@ static GtkWidget * get_config_frame(PurplePlugin *plugin)
 	gtk_tree_view_set_rules_hint(GTK_TREE_VIEW(tree), TRUE);
 	gtk_widget_set_size_request(tree, -1, 200);
 
+    // TODO: initially add default search engines
+	//gtk_list_store_append(model, &iter);
+
+    /*
 	renderer = gtk_cell_renderer_text_new();
 	g_object_set(G_OBJECT(renderer),
 		"editable", TRUE,
@@ -763,6 +768,7 @@ static GtkWidget * get_config_frame(PurplePlugin *plugin)
 													  NULL);
 	gtk_tree_view_column_set_resizable(column, TRUE);
 	gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
+    */
 
 	gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(tree)),
 		 GTK_SELECTION_MULTIPLE);
@@ -773,6 +779,19 @@ static GtkWidget * get_config_frame(PurplePlugin *plugin)
 	gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 	gtk_widget_show(hbox);
 
+    // add button
+    button = gtk_button_new_from_stock(GTK_STOCK_ADD);
+    g_signal_connect(G_OBJECT(button), "clicked",
+               G_CALLBACK(list_add), NULL); // TODO: make callback function
+    gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
+    gtk_widget_set_sensitive(button, FALSE);
+
+	g_signal_connect(G_OBJECT(gtk_tree_view_get_selection(GTK_TREE_VIEW(tree))),
+		"changed", G_CALLBACK(on_selection_changed), button);
+
+    gtk_widget_show(button);
+
+    // delete button
 	button = gtk_button_new_from_stock(GTK_STOCK_DELETE);
 	g_signal_connect(G_OBJECT(button), "clicked",
 			   G_CALLBACK(list_delete), NULL);
@@ -784,6 +803,7 @@ static GtkWidget * get_config_frame(PurplePlugin *plugin)
 
 	gtk_widget_show(button);
 
+    /*
 	vbox = pidgin_make_frame(ret, _("Add a new text replacement"));
 
 	hbox = gtk_hbox_new(FALSE, PIDGIN_HIG_BOX_SPACE);
@@ -832,6 +852,7 @@ static GtkWidget * get_config_frame(PurplePlugin *plugin)
 	g_signal_connect(G_OBJECT(good_entry), "changed", G_CALLBACK(on_entry_changed), button);
 	gtk_widget_set_sensitive(button, FALSE);
 	gtk_widget_show(button);
+    */
 
 #if 0
 	vbox = pidgin_make_frame(ret, _("General Text Replacement Options"));
