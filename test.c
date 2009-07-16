@@ -23,7 +23,7 @@
 
 #define TEST_PLUGIN_ID "gtk-test"
 #define TEST_OBJECT_KEY "test"
-/*
+
 enum {
 	BAD_COLUMN,
 	GOOD_COLUMN,
@@ -32,20 +32,6 @@ enum {
 	N_COLUMNS
 };
 
-struct _spellchk {
-	GtkTextView *view;
-	GtkTextMark *mark_insert_start;
-	GtkTextMark *mark_insert_end;
-
-	gchar *word;
-	gboolean inserting;
-	gboolean ignore_correction;
-	gboolean ignore_correction_on_send;
-	gint pos;
-};
-
-typedef struct _spellchk spellchk;
-*/
 typedef struct {
 	PurpleConversation *conv; // pointer to the conversation 
 	GtkWidget *seperator; // seperator in the conversation 
@@ -81,8 +67,7 @@ static GHashTable *search_engines;
 PurplePlugin *test_plugin = NULL;
 
 
-static void
-open_url(const gchar *search_term, const gchar *search_engine)
+static void open_url(const gchar *search_term, const gchar *search_engine)
 {
     gchar *url = g_strconcat("http://www.google.com/#hl=en&q=", search_term, NULL);
     purple_debug_info(TEST_PLUGIN_ID, "search_term: %s\n", search_term);
@@ -90,623 +75,8 @@ open_url(const gchar *search_term, const gchar *search_engine)
 }
 
 static GtkListStore *model;
-/*
-static gboolean
-is_word_uppercase(const gchar *word)
-{
-	for (; word[0] != '\0'; word = g_utf8_find_next_char (word, NULL)) {
-		gunichar c = g_utf8_get_char(word);
 
-		if (!(g_unichar_isupper(c) ||
-		      g_unichar_ispunct(c) ||
-		      g_unichar_isspace(c)))
-			return FALSE;
-	}
 
-	return TRUE;
-}
-
-static gboolean
-is_word_lowercase(const gchar *word)
-{
-	for (; word[0] != '\0'; word = g_utf8_find_next_char(word, NULL)) {
-		gunichar c = g_utf8_get_char(word);
-
-		if (!(g_unichar_islower(c) ||
-		      g_unichar_ispunct(c) ||
-		      g_unichar_isspace(c)))
-			return FALSE;
-	}
-
-	return TRUE;
-}
-
-static gboolean
-is_word_proper(const gchar *word)
-{
-	if (word[0] == '\0')
-		return FALSE;
-
-	if (!g_unichar_isupper(g_utf8_get_char_validated(word, -1)))
-		return FALSE;
-
-	return is_word_lowercase(g_utf8_offset_to_pointer(word, 1));
-}
-
-static gchar *
-make_word_proper(const gchar *word)
-{
-	char buf[7];
-	gchar *lower = g_utf8_strdown(word, -1);
-	gint bytes;
-	gchar *ret;
-
-	bytes = g_unichar_to_utf8(g_unichar_toupper(g_utf8_get_char(word)), buf);
-	buf[MIN(bytes, sizeof(buf) - 1)] = '\0';
-
-	ret = g_strconcat(buf, g_utf8_offset_to_pointer(lower, 1), NULL);
-	g_free(lower);
-
-	return ret;
-}
-*/
-/*
-static gboolean
-substitute_simple_buffer(GtkTextBuffer *buffer)
-{
-	GtkTextIter start;
-	GtkTextIter end;
-	GtkTreeIter treeiter;
-	gchar *text = NULL;
-
-	gtk_text_buffer_get_iter_at_offset(buffer, &start, 0);
-	gtk_text_buffer_get_iter_at_offset(buffer, &end, 0);
-	gtk_text_iter_forward_to_end(&end);
-
-	text = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
-
-	if (gtk_tree_model_get_iter_first(GTK_TREE_MODEL(model), &treeiter) && text) {
-		do {
-			GValue val1;
-			const gchar *bad;
-			gchar *cursor;
-			glong char_pos;
-
-			val1.g_type = 0;
-			gtk_tree_model_get_value(GTK_TREE_MODEL(model), &treeiter, WORD_ONLY_COLUMN, &val1);
-			if (g_value_get_boolean(&val1))
-			{
-				g_value_unset(&val1);
-				continue;
-			}
-			g_value_unset(&val1);
-
-			gtk_tree_model_get_value(GTK_TREE_MODEL(model), &treeiter, BAD_COLUMN, &val1);
-			bad = g_value_get_string(&val1);
-
-			// using g_utf8_* to get /character/ offsets instead of byte offsets for buffer 
-			if ((cursor = g_strrstr(text, bad)))
-			{
-				GValue val2;
-				const gchar *good;
-
-				val2.g_type = 0;
-				gtk_tree_model_get_value(GTK_TREE_MODEL(model), &treeiter, GOOD_COLUMN, &val2);
-				good = g_value_get_string(&val2);
-
-				char_pos = g_utf8_pointer_to_offset(text, cursor);
-				gtk_text_buffer_get_iter_at_offset(buffer, &start, char_pos);
-				gtk_text_buffer_get_iter_at_offset(buffer, &end, char_pos + g_utf8_strlen(bad, -1));
-				gtk_text_buffer_delete(buffer, &start, &end);
-
-				gtk_text_buffer_get_iter_at_offset(buffer, &start, char_pos);
-				gtk_text_buffer_insert(buffer, &start, good, -1);
-
-				g_value_unset(&val2);
-				g_free(text);
-
-				g_value_unset(&val1);
-				return TRUE;
-			}
-
-			g_value_unset(&val1);
-		} while (gtk_tree_model_iter_next(GTK_TREE_MODEL(model), &treeiter));
-	}
-
-	g_free(text);
-	return FALSE;
-}
-
-static gchar *
-substitute_word(gchar *word)
-{
-	GtkTreeIter iter;
-	gchar *outword;
-	gchar *lowerword;
-	gchar *foldedword;
-
-	if (word == NULL)
-		return NULL;
-
-	lowerword = g_utf8_strdown(word, -1);
-	foldedword = g_utf8_casefold(word, -1);
-
-	if (gtk_tree_model_get_iter_first(GTK_TREE_MODEL(model), &iter)) {
-		do {
-			GValue val1;
-			gboolean case_sensitive;
-			const char *bad;
-			gchar *tmpbad = NULL;
-
-			val1.g_type = 0;
-			gtk_tree_model_get_value(GTK_TREE_MODEL(model), &iter, WORD_ONLY_COLUMN, &val1);
-			if (!g_value_get_boolean(&val1)) {
-				g_value_unset(&val1);
-				continue;
-			}
-			g_value_unset(&val1);
-
-			gtk_tree_model_get_value(GTK_TREE_MODEL(model), &iter, CASE_SENSITIVE_COLUMN, &val1);
-			case_sensitive = g_value_get_boolean(&val1);
-			g_value_unset(&val1);
-
-			gtk_tree_model_get_value(GTK_TREE_MODEL(model), &iter, BAD_COLUMN, &val1);
-			bad = g_value_get_string(&val1);
-
-			if ((case_sensitive && !strcmp(bad, word)) ||
-			    (!case_sensitive && (!strcmp(bad, lowerword) ||
-			                        (!is_word_lowercase(bad) &&
-			                         !strcmp((tmpbad = g_utf8_casefold(bad, -1)), foldedword)))))
-			{
-				GValue val2;
-				const char *good;
-
-				g_free(tmpbad);
-
-				val2.g_type = 0;
-				gtk_tree_model_get_value(GTK_TREE_MODEL(model), &iter, GOOD_COLUMN, &val2);
-				good = g_value_get_string(&val2);
-
-				if (!case_sensitive && is_word_lowercase(bad) && is_word_lowercase(good))
-				{
-					if (is_word_uppercase(word))
-						outword = g_utf8_strup(good, -1);
-					else if (is_word_proper(word))
-						outword = make_word_proper(good);
-					else
-						outword = g_strdup(good);
-				}
-				else
-					outword = g_strdup(good);
-
-                purple_debug_info(TEST_PLUGIN_ID, "opening url...\n");
-                open_url(good);
-
-				g_value_unset(&val1);
-				g_value_unset(&val2);
-
-				g_free(lowerword);
-				g_free(foldedword);
-				return outword;
-			}
-
-			g_value_unset(&val1);
-			g_free(tmpbad);
-
-		} while (gtk_tree_model_iter_next(GTK_TREE_MODEL(model), &iter));
-	}
-	g_free(lowerword);
-	g_free(foldedword);
-
-	return NULL;
-}
-*/
-
-/*
-static void
-spellchk_free(spellchk *spell)
-{
-	GtkTextBuffer *buffer;
-
-	g_return_if_fail(spell != NULL);
-
-	buffer = gtk_text_view_get_buffer(spell->view);
-
-	g_signal_handlers_disconnect_matched(buffer,
-			G_SIGNAL_MATCH_DATA,
-			0, 0, NULL, NULL,
-			spell);
-	g_free(spell->word);
-	g_free(spell);
-}*/
-
-
-/* Pango doesn't know about the "'" character.  Let's fix that. */
-/*
-static gboolean
-spellchk_inside_word(GtkTextIter *iter)
-{
-	gunichar ucs4_char = gtk_text_iter_get_char(iter);
-	gchar *utf8_str;
-	gchar c = 0;
-
-	utf8_str = g_ucs4_to_utf8(&ucs4_char, 1, NULL, NULL, NULL);
-	if (utf8_str != NULL)
-	{
-		c = utf8_str[0];
-		g_free(utf8_str);
-	}
-
-	// Hack because otherwise typing things like U.S. gets difficult
-	// if you have 'u' -> 'you' set as a correction...
-	//
-	// Part 1 of 2: This marks . as being an inside-word character. 
-	//
-	if (c == '.')
-		return TRUE;
-
-	// Avoid problems with \r, for example (SF #1289031). 
-	if (c == '\\')
-		return TRUE;
-
-	if (gtk_text_iter_inside_word (iter) == TRUE)
-		return TRUE;
-
-	if (c == '\'') {
-		gboolean result = gtk_text_iter_backward_char(iter);
-		gboolean output = gtk_text_iter_inside_word(iter);
-
-		if (result)
-		{
-			//
-			// Hack so that "u'll" will correct correctly.
-			//
-			ucs4_char = gtk_text_iter_get_char(iter);
-			utf8_str = g_ucs4_to_utf8(&ucs4_char, 1, NULL, NULL, NULL);
-			if (utf8_str != NULL)
-			{
-				c = utf8_str[0];
-				g_free(utf8_str);
-
-				if (c == 'u' || c == 'U')
-				{
-					gtk_text_iter_forward_char(iter);
-					return FALSE;
-				}
-			}
-
-			gtk_text_iter_forward_char(iter);
-		}
-
-		return output;
-	}
-	else if (c == '&')
-		return TRUE;
-
-	return FALSE;
-}
-*/
-/*
-static gboolean
-spellchk_backward_word_start(GtkTextIter *iter)
-{
-	int output;
-	int result;
-
-	output = gtk_text_iter_backward_word_start(iter);
-
-	// It didn't work...  
-	if (!output)
-		return FALSE;
-
-	while (spellchk_inside_word(iter)) {
-		result = gtk_text_iter_backward_char(iter);
-
-		// We can't go backwards anymore?  We're at the beginning of the word. 
-		if (!result)
-			return TRUE;
-
-		if (!spellchk_inside_word(iter)) {
-			gtk_text_iter_forward_char(iter);
-			return TRUE;
-		}
-
-		output = gtk_text_iter_backward_word_start(iter);
-		if (!output)
-			return FALSE;
-	}
-
-	return TRUE;
-}
-*/
-/*
-static gboolean
-check_range(spellchk *spell, GtkTextBuffer *buffer,
-				GtkTextIter start, GtkTextIter end, gboolean sending)
-{
-	gboolean replaced;
-	gboolean result;
-	gchar *tmp;
-	int period_count = 0;
-	gchar *word;
-	GtkTextMark *mark;
-	GtkTextIter pos;
-
-	if ((replaced = substitute_simple_buffer(buffer)))
-	{
-		mark = gtk_text_buffer_get_insert(buffer);
-		gtk_text_buffer_get_iter_at_mark(buffer, &pos, mark);
-		spell->pos = gtk_text_iter_get_offset(&pos);
-
-		gtk_text_buffer_get_iter_at_mark(buffer, &start, mark);
-		gtk_text_buffer_get_iter_at_mark(buffer, &end, mark);
-	}
-
-	if (!sending)
-	{
-		// We need to go backwords to find out if we are inside a word or not. *
-		gtk_text_iter_backward_char(&end);
-
-		if (spellchk_inside_word(&end))
-		{
-			gtk_text_iter_forward_char(&end);
-			return replaced;  // We only pay attention to whole words. 
-		}
-	}
-
-	// We could be in the middle of a whitespace block.  Check for that. 
-	result = gtk_text_iter_backward_char(&end);
-
-	if (!spellchk_inside_word(&end))
-	{
-		if (result)
-			gtk_text_iter_forward_char(&end);
-		return replaced;
-	}
-
-	if (result)
-		gtk_text_iter_forward_char(&end);
-
-	// Move backwards to the beginning of the word. //
-	spellchk_backward_word_start(&start);
-
-	g_free(spell->word);
-	spell->word = gtk_text_iter_get_text(&start, &end);
-
-	// Hack because otherwise typing things like U.S. gets difficult
-	 // if you have 'u' -> 'you' set as a correction...
-	 //
-	// * Part 2 of 2: This chops periods off the end of the word so
-	// * the right substitution entry is found. 
-	tmp = g_strdup(spell->word);
-	if (tmp != NULL && *tmp != '\0') {
-		gchar *c;
-		for (c = tmp + strlen(tmp) - 1 ; c != tmp ; c--) {
-			if (*c == '.') {
-				*c = '\0';
-				period_count++;
-			} else
-				break;
-		}
-	}
-
-	if ((word = substitute_word(tmp))) {
-		GtkTextMark *mark;
-		GtkTextIter pos;
-		gchar *tmp2;
-		int i;
-
-		for (i = 1 ; i <= period_count ; i++) {
-			tmp2 = g_strconcat(word, ".", NULL);
-			g_free(word);
-			word = tmp2;
-		}
-
-		gtk_text_buffer_delete(buffer, &start, &end);
-		gtk_text_buffer_insert(buffer, &start, word, -1);
-
-		mark = gtk_text_buffer_get_insert(buffer);
-		gtk_text_buffer_get_iter_at_mark(buffer, &pos, mark);
-		spell->pos = gtk_text_iter_get_offset(&pos);
-
-		g_free(word);
-		g_free(tmp);
-		return TRUE;
-	}
-	g_free(tmp);
-
-	g_free(spell->word);
-	spell->word = NULL;
-
-	return replaced;
-}
-
-// insertion works like this:
-// *  - before the text is inserted, we mark the position in the buffer.
-// *  - after the text is inserted, we see where our mark is and use that and
-// *    the current position to check the entire range of inserted text.
-// *
-// * this may be overkill for the common case (inserting one character). 
-
-static void
-insert_text_before(GtkTextBuffer *buffer, GtkTextIter *iter,
-					gchar *text, gint len, spellchk *spell)
-{
-	if (spell->inserting == TRUE)
-		return;
-
-	spell->inserting = TRUE;
-
-	g_free(spell->word);
-	spell->word = NULL;
-
-	gtk_text_buffer_move_mark(buffer, spell->mark_insert_start, iter);
-}
-
-static void
-insert_text_after(GtkTextBuffer *buffer, GtkTextIter *iter,
-					gchar *text, gint len, spellchk *spell)
-{
-	GtkTextIter start, end;
-	GtkTextMark *mark;
-
-	spell->ignore_correction_on_send = FALSE;
-
-	if (spell->ignore_correction) {
-		spell->ignore_correction = FALSE;
-		return;
-	}
-
-	// we need to check a range of text. 
-	gtk_text_buffer_get_iter_at_mark(buffer, &start, spell->mark_insert_start);
-
-	if (len == 1)
-		check_range(spell, buffer, start, *iter, FALSE);
-
-	// if check_range modified the buffer, iter has been invalidated 
-	mark = gtk_text_buffer_get_insert(buffer);
-	gtk_text_buffer_get_iter_at_mark(buffer, &end, mark);
-	gtk_text_buffer_move_mark(buffer, spell->mark_insert_end, &end);
-
-	spell->inserting = FALSE;
-}
-
-static void
-delete_range_after(GtkTextBuffer *buffer,
-					GtkTextIter *start, GtkTextIter *end, spellchk *spell)
-{
-	GtkTextIter start2, end2;
-	GtkTextMark *mark;
-	GtkTextIter pos;
-	gint place;
-
-	spell->ignore_correction_on_send = FALSE;
-
-	if (!spell->word)
-		return;
-
-	if (spell->inserting == TRUE)
-		return;
-
-	spell->inserting = TRUE;
-
-	mark = gtk_text_buffer_get_insert(buffer);
-	gtk_text_buffer_get_iter_at_mark(buffer, &pos, mark);
-	place = gtk_text_iter_get_offset(&pos);
-
-	if ((place + 1) != spell->pos) {
-		g_free(spell->word);
-		spell->word = NULL;
-		return;
-	}
-
-	gtk_text_buffer_get_iter_at_mark(buffer, &start2, spell->mark_insert_start);
-	gtk_text_buffer_get_iter_at_mark(buffer, &end2, spell->mark_insert_end);
-
-	gtk_text_buffer_delete(buffer, &start2, &end2);
-	gtk_text_buffer_insert(buffer, &start2, spell->word, -1);
-	spell->ignore_correction = TRUE;
-	spell->ignore_correction_on_send = TRUE;
-
-	spell->inserting = FALSE;
-	g_free(spell->word);
-	spell->word = NULL;
-}
-*/
-/*
-static void
-message_send_cb(GtkWidget *widget, spellchk *spell)
-{
-	GtkTextBuffer *buffer;
-	GtkTextIter start, end;
-	GtkTextMark *mark;
-	gboolean replaced;
-
-	if (spell->ignore_correction_on_send)
-	{
-		spell->ignore_correction_on_send = FALSE;
-		return;
-	}
-
-#if 0
-	if (!purple_prefs_get_bool("/plugins/gtk/spellchk/last_word_replace"))
-		return;
-#endif
-
-	buffer = gtk_text_view_get_buffer(spell->view);
-
-	gtk_text_buffer_get_end_iter(buffer, &start);
-	gtk_text_buffer_get_end_iter(buffer, &end);
-	spell->inserting = TRUE;
-	replaced = check_range(spell, buffer, start, end, TRUE);
-	spell->inserting = FALSE;
-
-	// if check_range modified the buffer, iter has been invalidated 
-	mark = gtk_text_buffer_get_insert(buffer);
-	gtk_text_buffer_get_iter_at_mark(buffer, &end, mark);
-	gtk_text_buffer_move_mark(buffer, spell->mark_insert_end, &end);
-
-	if (replaced)
-	{
-		g_signal_stop_emission_by_name(widget, "message_send");
-		spell->ignore_correction_on_send = TRUE;
-	}
-}*/
-
-
-/*
-static void
-spellchk_new_attach(PurpleConversation *conv)
-{
-	spellchk *spell;
-	GtkTextBuffer *buffer;
-	GtkTextIter start, end;
-	PidginConversation *gtkconv;
-	GtkTextView *view;
-
-	gtkconv = PIDGIN_CONVERSATION(conv);
-
-	view = GTK_TEXT_VIEW(gtkconv->entry);
-
-	spell = g_object_get_data(G_OBJECT(view), TEST_OBJECT_KEY);
-	if (spell != NULL)
-		return;
-
-	// attach to the widget 
-	spell = g_new0(spellchk, 1);
-	spell->view = view;
-
-	g_object_set_data_full(G_OBJECT(view), TEST_OBJECT_KEY, spell,
-			(GDestroyNotify)spellchk_free);
-
-	buffer = gtk_text_view_get_buffer(view);
-
-	// we create the mark here, but we don't use it until text is
-	// * inserted, so we don't really care where iter points.  
-	gtk_text_buffer_get_bounds(buffer, &start, &end);
-	spell->mark_insert_start = gtk_text_buffer_create_mark(buffer,
-			"spellchk-insert-start",
-			&start, TRUE);
-	spell->mark_insert_end = gtk_text_buffer_create_mark(buffer,
-			"spellchk-insert-end",
-			&start, TRUE);
-
-	g_signal_connect_after(G_OBJECT(buffer),
-			"delete-range",
-			G_CALLBACK(delete_range_after), spell);
-	g_signal_connect(G_OBJECT(buffer),
-			"insert-text",
-			G_CALLBACK(insert_text_before), spell);
-	g_signal_connect_after(G_OBJECT(buffer),
-			"insert-text",
-			G_CALLBACK(insert_text_after), spell);
-
-	g_signal_connect(G_OBJECT(gtkconv->entry), "message_send",
-	                 G_CALLBACK(message_send_cb), spell);
-	return;
-}*/
-
-/*
 static int buf_get_line(char *ibuf, char **buf, int *position, gsize len)
 {
 	int pos = *position;
@@ -734,12 +104,9 @@ static int buf_get_line(char *ibuf, char **buf, int *position, gsize len)
 
 	return 1;
 }
-*/
 
 
-/*
-static void
-load_conf(void)
+static void load_conf(void)
 {
 	const char * const defaultconf =
 			"BAD abbout\nGOOD about\n"
@@ -815,14 +182,12 @@ load_conf(void)
 	gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model),
 	                                     0, GTK_SORT_ASCENDING);
 }
-*/
-/*
+
 static GtkWidget *tree;
 static GtkWidget *bad_entry;
 static GtkWidget *good_entry;
 static GtkWidget *complete_toggle;
 static GtkWidget *case_toggle;
-
 static void save_list(void);
 
 static void on_edited(GtkCellRendererText *cellrenderertext,
@@ -846,9 +211,6 @@ static void on_edited(GtkCellRendererText *cellrenderertext,
 	}
 	g_value_unset(&val);
 }
-*/
-
-/*
 
 static void word_only_toggled(GtkCellRendererToggle *cellrenderertoggle,
 						gchar *path, gpointer data){
@@ -870,9 +232,8 @@ static void word_only_toggled(GtkCellRendererToggle *cellrenderertoggle,
 					   -1);
 
 	save_list();
-} */
+}
 
-/*
 static void case_sensitive_toggled(GtkCellRendererToggle *cellrenderertoggle,
 						gchar *path, gpointer data){
 	GtkTreeIter iter;
@@ -898,9 +259,7 @@ static void case_sensitive_toggled(GtkCellRendererToggle *cellrenderertoggle,
 
 	save_list();
 }
-*/
 
-/*
 static void list_add_new(void)
 {
 	GtkTreeIter iter;
@@ -1059,19 +418,17 @@ static void save_list()
 	purple_util_write_data_to_file("dict", data->str, -1);
 
 	g_string_free(data, TRUE);
-}*/
-/*
+}
+
 #if !GTK_CHECK_VERSION(2,2,0)
-static void
-count_selected_helper(GtkTreeModel *model, GtkTreePath *path,
+static void count_selected_helper(GtkTreeModel *model, GtkTreePath *path,
 					GtkTreeIter *iter, gpointer user_data)
 {
 	(*(gint *)user_data)++;
 }
 #endif
 
-static void on_selection_changed(GtkTreeSelection *sel,
-	gpointer data)
+static void on_selection_changed(GtkTreeSelection *sel, gpointer data)
 {
 	gint num_selected;
 #if GTK_CHECK_VERSION(2,2,0)
@@ -1094,7 +451,7 @@ static void on_entry_changed(GtkEditable *editable, gpointer data)
 	gtk_widget_set_sensitive((GtkWidget*)data,
 		non_empty(gtk_entry_get_text(GTK_ENTRY(bad_entry))) &&
 		non_empty(gtk_entry_get_text(GTK_ENTRY(good_entry))));
-}*/
+}
 
 static void test_xml()
 {
@@ -1135,8 +492,7 @@ static void test_xml()
 	}
 }
 
-static int
-mmconv_from_conv_loc(PurpleConversation *conv)
+static int mmconv_from_conv_loc(PurpleConversation *conv)
 {
 	GList *l;
 	MMConversation *mmconv_current = NULL;
@@ -1155,8 +511,7 @@ mmconv_from_conv_loc(PurpleConversation *conv)
 	return -1;
 }
 
-static MMConversation*
-mmconv_from_conv(PurpleConversation *conv)
+static MMConversation* mmconv_from_conv(PurpleConversation *conv)
 {
 	return (MMConversation *)g_list_nth_data(conversations, mmconv_from_conv_loc(conv));
 }
@@ -1193,21 +548,6 @@ static void remove_widget (GtkWidget *widget)
 static void search_button_clicked (GtkWidget *widget, gpointer data)
 {
 	MMConversation *mmconv = mmconv_from_conv(((MMConversation *) data)->conv);
-	//if (gtk_toggle_button_get_active (GTK_TOGGLE_BUTTON (widget))) 
-    //{
-	//	if (((MMConversation *) data)->requested)
-	//	{
-	//		//start_session(mmconv);
-	//		//send_request_confirmed(mmconv);
-	//	}
-	//	else
-	//	{
-	//		((MMConversation *) data)->originator = TRUE;
-	//		//send_request((MMConversation *) data);
-	//	}
-    //} else {
-	//	//session_end((MMConversation *)data);
-    //}
 
     PidginConversation *gtkconv = PIDGIN_CONVERSATION(mmconv->conv);
 
@@ -1285,8 +625,7 @@ static void init_conversation (PurpleConversation *conv)
 	conversations = g_list_append(conversations, mmconv);
 }
 
-static gboolean
-plugin_load(PurplePlugin *plugin)
+static gboolean plugin_load(PurplePlugin *plugin)
 {
 	void *conv_list_handle;
 
@@ -1300,7 +639,7 @@ plugin_load(PurplePlugin *plugin)
 
     purple_conversation_foreach(init_conversation);
 
-	//load_conf();
+	load_conf();
 
 	/* Listen for any new conversations */
 	conv_list_handle = purple_conversations_get_handle();
@@ -1315,8 +654,7 @@ plugin_load(PurplePlugin *plugin)
 	return TRUE;
 }
 
-static gboolean
-plugin_unload(PurplePlugin *plugin)
+static gboolean plugin_unload(PurplePlugin *plugin)
 {
 	/*GList *convs;
 
@@ -1332,8 +670,9 @@ plugin_unload(PurplePlugin *plugin)
 	*/
 	return TRUE;
 }
-/*
-static void whole_words_button_toggled(GtkToggleButton *complete_toggle, GtkToggleButton *case_toggle)
+
+static void
+whole_words_button_toggled(GtkToggleButton *complete_toggle, GtkToggleButton *case_toggle)
 {
 	gboolean enabled = gtk_toggle_button_get_active(complete_toggle);
 
@@ -1341,8 +680,7 @@ static void whole_words_button_toggled(GtkToggleButton *complete_toggle, GtkTogg
 	gtk_widget_set_sensitive(GTK_WIDGET(case_toggle), enabled);
 }
 
-static GtkWidget *
-get_config_frame(PurplePlugin *plugin)
+static GtkWidget * get_config_frame(PurplePlugin *plugin)
 {
 	GtkWidget *ret, *vbox, *win;
 	GtkWidget *hbox;
@@ -1507,11 +845,9 @@ get_config_frame(PurplePlugin *plugin)
 	return ret;
 }
 
-*/
-
 static PidginPluginUiInfo ui_info =
 {
-	NULL, //get_config_frame,
+	get_config_frame,
 	0, /* page_num (Reserved) */
 
 	/* padding */
