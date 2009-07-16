@@ -16,6 +16,159 @@
 #include "util.h"
 #include "xmlnode.h"
 
+
+int get_params_length(xmlnode * firstParamNode){
+	unsigned int result = 0;
+	xmlnode * temp, *node;
+	node = firstParamNode;
+	// check to see if the node at least has the right name
+	if( strcmp(node->name, "Param") != 0 ){
+		return 0;
+	}
+	temp = firstParamNode;
+	while(temp != NULL ){
+		if(strcmp(xmlnode_get_attrib(temp,"value" ), "{searchTerms}") == 0 ){
+			result += strlen(xmlnode_get_attrib(temp,"name" ));
+			result++; // for the '=' symbol
+		} else {
+			result += strlen(xmlnode_get_attrib(temp,"name" ));
+			result += strlen(xmlnode_get_attrib(temp,"value" ));
+			result++; // for the '=' symbol	
+		}
+		temp = xmlnode_get_next_twin(temp);
+	}
+	return result;
+}
+// takes first param node
+/*
+gchar* get_url_from_params(xmlnode * child){
+	int buffer_len = 0;
+	gchar *url, *query_param, template;
+	xmlnode //*child,
+	 *node, *temp;
+	
+	if( strcmp(node->name, "Param") != 0 ){
+		return 0;
+	}
+	
+	temp = child;
+	template = xmlnode_get_attrib(temp,"template" );
+	temp = xmlnode_get_child(temp, "Param");
+	buffer_len = get_params_length(temp) + strlen(template);
+	url = malloc(buffer_len  );
+	g_strcat(url, template, buffer_len);
+	while(temp != NULL ){
+		if(strcmp(xmlnode_get_attrib(temp,"value" ), "{searchTerms}") == 0 ){
+			query_param = xmlnode_get_attrib(temp,"name" );
+		} else {
+			g_strcat(url, xmlnode_get_attrib(temp,"name" ), buffer_len);
+			g_strcat(url, xmlnode_get_attrib(temp,"=" ), buffer_len);
+			g_strcat(url, xmlnode_get_attrib(temp,"value" ), buffer_len);
+		}
+		temp = xmlnode_get_next_twin(temp);
+	}
+	g_strcat(url, query_param, buffer_len);
+	g_strcat(url, xmlnode_get_attrib(temp,"=" ), buffer_len);
+	return url;
+				
+}*/
+
+// this will take the name of the opensearch xml file 
+// and return the struct with URL information
+/*static search_engine*
+parse_opensearch(void)
+{
+	int buffer_len = 0;
+	gchar *url, *query_param;
+	xmlnode *child, *node, *temp;
+	
+	gchar *search_provider_path = "google_search-opensearch.xml";
+	node = purple_util_read_xml_from_file("google_search-opensearch.xml", _("google_search-opensearch"));
+	
+	if(node == NULL) {
+		purple_debug_info(TEST_PLUGIN_ID, "the file %s could not be loaded\n", search_provider_path);
+		return NULL;
+	} 
+	purple_debug_info(TEST_PLUGIN_ID, "the root node: %s\n", node->name);
+	
+	// if the root node is not named SearchPlugin
+	// then the xml file may not be valid
+	if( strcmp(node->name, "SearchPlugin") != 0 ){
+		return NULL;
+	}	
+	//child = xmlnode_get_child(node, "SearchPlugin");
+	child = node;
+	
+	if (child != NULL){
+		//purple_debug_info(TEST_PLUGIN_ID, "%s\n", child->name );
+		child = xmlnode_get_child(child, "Url");
+		while(child != NULL ){
+			purple_debug_info(TEST_PLUGIN_ID, "%s\n", xmlnode_get_attrib(child,"type" ) );
+			//purple_debug_info(TEST_PLUGIN_ID, "i : %d: %s :%s (%d)\n", i++,
+			//	 node->name, xmlnode_get_attrib(node,"type" ),  node->type );
+			//purple_debug_info(TEST_PLUGIN_ID, "%s\n", g_hash_table_lookup(node->namespace_map, "type"));
+			
+			// at this point we only care about one of the Url tags, but there could
+			// be many (at least two that I know of)
+			// mozilla uses one Url tag for suggestions
+			if( strcmp(xmlnode_get_attrib(child,"type" ), "text/html") == 0 ){
+				
+			}
+			child = xmlnode_get_next_twin(child);
+		}
+	} else {
+		purple_debug_info(TEST_PLUGIN_ID, "error: could not get child 'SearchPlugin'\n" ) ;
+	}
+	
+	return NULL;	
+}
+*/
+
+static void test_xml()
+{
+	//parse_opensearch();
+	
+	//int i = 0, ii = 0;
+	//xmlnode *node = NULL;//, *temp = NULL;	
+	// path relative to user's dir (i.e ~/.purple/)
+	//gchar *search_provider_path = "google_search-opensearch.xml";
+	//node = load_search_provider(search_provider_path);
+	//node = purple_util_read_xml_from_file(search_provider_path, _("search_provider"));
+	//if(node == NULL) {
+	//	purple_debug_info(TEST_PLUGIN_ID, "the file %s could not be loaded\n", search_provider_path);
+	//} else {
+		
+			
+		/*temp = node;
+		
+		while(node != NULL ){
+			purple_debug_info(TEST_PLUGIN_ID, "%s\n", xmlnode_get_attrib(node,"type" ) );
+			//purple_debug_info(TEST_PLUGIN_ID, "i : %d: %s :%s (%d)\n", i++,
+			//	 node->name, xmlnode_get_attrib(node,"type" ),  node->type );
+			//purple_debug_info(TEST_PLUGIN_ID, "%s\n", g_hash_table_lookup(node->namespace_map, "type"));
+			node = xmlnode_get_next_twin(node);
+		}
+		node = temp->child;
+		i = 0;
+		while(node != NULL){					
+			purple_debug_info(TEST_PLUGIN_ID, "i : %d: %s :%s (%d)\n", i++, 
+				node->name, xmlnode_get_attrib(node,"type" ), node->type );		
+			if(node->name != NULL && strcmp(node->name, "Url") == 0  ){
+				temp = node->child;
+				while(temp != NULL){
+					purple_debug_info(TEST_PLUGIN_ID, "ii : %d: %s :%s (%d)\n", ii++, 
+						temp->name, xmlnode_get_attrib(temp,"type" ), temp->type );
+					temp = temp->next;
+				}
+				ii = 0;
+			} 
+				
+			node = node->next;			
+		}*/
+	//}
+}
+
+
 static xmlnode*
 load_search_provider(gchar *path_to_opensearch_xml)
 {
