@@ -454,44 +454,6 @@ static void on_entry_changed(GtkEditable *editable, gpointer data)
 		non_empty(gtk_entry_get_text(GTK_ENTRY(good_entry))));
 }
 
-static void test_xml()
-{
-	int i = 0, ii = 0;
-	xmlnode *node = NULL, *temp = NULL;
-
-	
-	gchar *search_provider_path = "google_search-opensearch.xml";
-	node = load_search_provider(search_provider_path);	
-	if(node == NULL) {
-		purple_debug_info(TEST_PLUGIN_ID, "the file %s could not be loaded", search_provider_path);
-	} else {
-		temp = node;
-		
-		while(node != NULL ){
-			purple_debug_info(TEST_PLUGIN_ID, "i : %d: %s :%s (%d)\n", i++,
-				 node->name, xmlnode_get_attrib(node,"type" ),  node->type );
-			//purple_debug_info(TEST_PLUGIN_ID, "%s\n", g_hash_table_lookup(node->namespace_map, "type"));
-			node = node->next;
-		}
-		node = temp->child;
-		i = 0;
-		while(node != NULL){					
-			purple_debug_info(TEST_PLUGIN_ID, "i : %d: %s :%s (%d)\n", i++, 
-				node->name, xmlnode_get_attrib(node,"type" ), node->type );		
-			if(node->name != NULL && strcmp(node->name, "Url") == 0  ){
-				temp = node->child;
-				while(temp != NULL){
-					purple_debug_info(TEST_PLUGIN_ID, "ii : %d: %s :%s (%d)\n", ii++, 
-						temp->name, xmlnode_get_attrib(temp,"type" ), temp->type );
-					temp = temp->next;
-				}
-				ii = 0;
-			} 
-				
-			node = node->next;			
-		}
-	}
-}
 
 static int mmconv_from_conv_loc(PurpleConversation *conv)
 {
