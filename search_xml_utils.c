@@ -16,7 +16,16 @@
 #include "util.h"
 #include "xmlnode.h"
 
+#define TEST_PLUGIN_ID "gtk-test"
+#define TEST_OBJECT_KEY "test"
+#define two_strcat(x,y) (g_strconcat(x,y,NULL))
+typedef struct {
+    gchar *name;
+    gchar *query_url;
+    gchar *icon_url;
+} search_engine;
 
+/*
 int get_params_length(xmlnode * firstParamNode){
 	unsigned int result = 0;
 	xmlnode * temp, *node;
@@ -38,62 +47,70 @@ int get_params_length(xmlnode * firstParamNode){
 		temp = xmlnode_get_next_twin(temp);
 	}
 	return result;
-}
+}*/
+
+
 // takes first param node
-/*
 gchar* get_url_from_params(xmlnode * child){
-	int buffer_len = 0;
-	gchar *url, *query_param, template;
-	xmlnode //*child,
+	//int buffer_len = 0;
+	gchar *url = NULL, *query_param = NULL, template = NULL;
+	xmlnode // *child,
 	 *node, *temp;
 	
 	if( strcmp(node->name, "Param") != 0 ){
-		return 0;
+		return NULL;
 	}
 	
 	temp = child;
 	template = xmlnode_get_attrib(temp,"template" );
 	temp = xmlnode_get_child(temp, "Param");
-	buffer_len = get_params_length(temp) + strlen(template);
-	url = malloc(buffer_len  );
-	g_strcat(url, template, buffer_len);
+	
+	//url = malloc(buffer_len  );
+	url = two_strcat(url, template);
 	while(temp != NULL ){
 		if(strcmp(xmlnode_get_attrib(temp,"value" ), "{searchTerms}") == 0 ){
 			query_param = xmlnode_get_attrib(temp,"name" );
 		} else {
-			g_strcat(url, xmlnode_get_attrib(temp,"name" ), buffer_len);
-			g_strcat(url, xmlnode_get_attrib(temp,"=" ), buffer_len);
-			g_strcat(url, xmlnode_get_attrib(temp,"value" ), buffer_len);
+			url = two_strcat(url, xmlnode_get_attrib(temp,"name" ));
+			url = two_strcat(url, "=" );
+			url = two_strcat(url, xmlnode_get_attrib(temp,"value" ));
+			url = two_strcat(url, "&");
 		}
 		temp = xmlnode_get_next_twin(temp);
 	}
-	g_strcat(url, query_param, buffer_len);
-	g_strcat(url, xmlnode_get_attrib(temp,"=" ), buffer_len);
-	return url;
-				
-}*/
+	url = two_strcat(url, query_param);
+	url = two_strcat(url, "=");
+	purple_debug_info(TEST_PLUGIN_ID, "returning url %s\n", url);
+	return url;				
+}
 
-// this will take the name of the opensearch xml file 
-// and return the struct with URL information
-/*static search_engine*
-parse_opensearch(void)
+
+/*	
+	parse_opensearch
+	@param opensearch_xml_filename the name of the opensearch xml file 
+	@return the search_engine struct with URL information from the given 
+*/
+static search_engine*
+parse_opensearch(gchar *opensearch_xml_filename)
 {
+	search_engine* result;
 	int buffer_len = 0;
-	gchar *url, *query_param;
+	gchar *url = "", *query_param  = "", *search_name = "";
 	xmlnode *child, *node, *temp;
 	
-	gchar *search_provider_path = "google_search-opensearch.xml";
-	node = purple_util_read_xml_from_file("google_search-opensearch.xml", _("google_search-opensearch"));
+	//gchar *search_provider_path = "google_search-opensearch.xml";
+	node = purple_util_read_xml_from_file(opensearch_xml_filename, _(opensearch_xml_filename));
 	
 	if(node == NULL) {
-		purple_debug_info(TEST_PLUGIN_ID, "the file %s could not be loaded\n", search_provider_path);
+		purple_debug_info(TEST_PLUGIN_ID, "the file %s could not be loaded\n", opensearch_xml_filename);
+		purple_debug_info(TEST_PLUGIN_ID, "%s may not be a valid XML file\n", opensearch_xml_filename);
 		return NULL;
 	} 
-	purple_debug_info(TEST_PLUGIN_ID, "the root node: %s\n", node->name);
-	
+		
 	// if the root node is not named SearchPlugin
 	// then the xml file may not be valid
 	if( strcmp(node->name, "SearchPlugin") != 0 ){
+		purple_debug_info(TEST_PLUGIN_ID, "the root node of the opensearch XML file should be 'SearchPlugin' but found '%s'\n", node->name);
 		return NULL;
 	}	
 	//child = xmlnode_get_child(node, "SearchPlugin");
@@ -101,32 +118,81 @@ parse_opensearch(void)
 	
 	if (child != NULL){
 		//purple_debug_info(TEST_PLUGIN_ID, "%s\n", child->name );
+		// there may be more than one Url tag within SearchPlugin
 		child = xmlnode_get_child(child, "Url");
 		while(child != NULL ){
-			purple_debug_info(TEST_PLUGIN_ID, "%s\n", xmlnode_get_attrib(child,"type" ) );
+			//purple_debug_info(TEST_PLUGIN_ID, "%s\n", xmlnode_get_attrib(child,"type" ) );
+			purple_debug_info(TEST_PLUGIN_ID, "%s\n", child->name );
 			//purple_debug_info(TEST_PLUGIN_ID, "i : %d: %s :%s (%d)\n", i++,
 			//	 node->name, xmlnode_get_attrib(node,"type" ),  node->type );
 			//purple_debug_info(TEST_PLUGIN_ID, "%s\n", g_hash_table_lookup(node->namespace_map, "type"));
 			
-			// at this point we only care about one of the Url tags, but there could
-			// be many (at least two that I know of)
+			// at this point we only care about one of the 'Url' tags,
+			// but there could be many (at least two that I know of).
 			// mozilla uses one Url tag for suggestions
 			if( strcmp(xmlnode_get_attrib(child,"type" ), "text/html") == 0 ){
-				
+				// parse_params and make url
+				//url = get_url_from_params(child);
+				url = g_strdup("http://google.com/search?q=");
+				if(url == NULL) {
+					purple_debug_info(TEST_PLUGIN_ID, "error creating url from params\n");
+					return NULL;			
+				}
 			}
 			child = xmlnode_get_next_twin(child);
 		}
-	} else {
-		purple_debug_info(TEST_PLUGIN_ID, "error: could not get child 'SearchPlugin'\n" ) ;
-	}
+		child = node;
+		// ShortName should be unique
+		child = xmlnode_get_child(child, "ShortName");
+		if(child == NULL) {
+			purple_debug_info(TEST_PLUGIN_ID, "error reading 'ShortName' tag\n");
+			return NULL;			
+		}
+		
+		// maybe we don't need to duplicate... 
+		search_name = g_strdup(xmlnode_get_data(child)); 
+		if(search_name == NULL){
+			purple_debug_info(TEST_PLUGIN_ID, "error reading 'ShortName' inner data\n");
+			return NULL;
+		}
+	} 
 	
-	return NULL;	
+	//do a free from data created by purple_util_read_xml_from_file
+	
+	// the items returned should be copies! the only reason the following will work
+	// is because the dom created by purple_util_read_xml_from_file remains in memory
+	result = malloc(sizeof(search_engine));
+	result->name = search_name;
+	result->query_url = url;
+	result->icon_url = NULL;
+	return result;	
 }
+/*
+	Need a function to get all opensearch xml files in a given folder
+	(i.e. the installed searches).
+*/
+
+/*
+	Need a function to copy a given file to the opensearch plugins directory
+	(i.e. to install a search)
+*/
+
+/*	
+	Need a function to delete a given file from the opensearch plugins directory
+	(i.e. to uninstall a search)
 */
 
 static void test_xml()
 {
-	//parse_opensearch();
+	search_engine* test = NULL;
+	test = parse_opensearch("google_search-opensearch.xml");
+	if(test != NULL){
+		purple_debug_info(TEST_PLUGIN_ID, "%s\n", test->name);
+		purple_debug_info(TEST_PLUGIN_ID, "%s\n", test->query_url);
+		//if(test->name == NULL) purple_debug_info(TEST_PLUGIN_ID, "error getting test->name == NULL\n");
+	} else {
+		purple_debug_info(TEST_PLUGIN_ID, "error getting search_engine struct\n");
+	}
 	
 	//int i = 0, ii = 0;
 	//xmlnode *node = NULL;//, *temp = NULL;	
@@ -168,7 +234,7 @@ static void test_xml()
 	//}
 }
 
-
+/*
 static xmlnode*
 load_search_provider(gchar *path_to_opensearch_xml)
 {
@@ -193,7 +259,7 @@ load_search_provider(gchar *path_to_opensearch_xml)
 
 	//_purple_buddy_icons_account_loaded_cb();
 }
-
+*/
 
 /*
 
