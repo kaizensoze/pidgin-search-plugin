@@ -21,8 +21,7 @@
 
 #include "search_xml_utils.c"
 
-#define TEST_PLUGIN_ID "gtk-test"
-#define TEST_OBJECT_KEY "test"
+
 
 enum {
 	BAD_COLUMN,
@@ -45,11 +44,6 @@ typedef struct {
 	
 } MMConversation;
 
-typedef struct {
-    gchar *name;
-    gchar *query_url;
-    gchar *icon_url;
-} search_engine;
 
 
 static void add_widgets (MMConversation *mmconv);
