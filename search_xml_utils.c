@@ -50,38 +50,44 @@ int get_params_length(xmlnode * firstParamNode){
 }*/
 
 
-// takes first param node
-gchar* get_url_from_params(xmlnode * child){
-	//int buffer_len = 0;
-	gchar *url = NULL, *query_param = NULL, template = NULL;
-	xmlnode // *child,
-	 *node, *temp;
+// takes the Url  node
+gchar* get_url_with_params(xmlnode * child){
+	gchar *url = "", *query_param = "";
+	xmlnode *temp;
 	
-	if( strcmp(node->name, "Param") != 0 ){
+	if( child == NULL ){
+		purple_debug_info(TEST_PLUGIN_ID, "NULL argument\n");
+		return NULL;
+	}
+	
+	if( strcmp(child->name, "Url") != 0 ){
+		purple_debug_info(TEST_PLUGIN_ID, "argument node is not named 'Url'\n");
 		return NULL;
 	}
 	
 	temp = child;
-	template = xmlnode_get_attrib(temp,"template" );
-	temp = xmlnode_get_child(temp, "Param");
 	
-	//url = malloc(buffer_len  );
-	url = two_strcat(url, template);
+	// this is an attribute of Url tag
+	url = g_strdup(xmlnode_get_attrib(temp,"template" ));
+	url = two_strcat(url, "?");
+	//return url;
+	
+		
+	
+	temp = xmlnode_get_child(temp, "Param");
 	while(temp != NULL ){
 		if(strcmp(xmlnode_get_attrib(temp,"value" ), "{searchTerms}") == 0 ){
 			query_param = xmlnode_get_attrib(temp,"name" );
 		} else {
-			url = two_strcat(url, xmlnode_get_attrib(temp,"name" ));
-			url = two_strcat(url, "=" );
-			url = two_strcat(url, xmlnode_get_attrib(temp,"value" ));
-			url = two_strcat(url, "&");
+			url = g_strconcat(url, xmlnode_get_attrib(temp,"name"), 
+				"=", xmlnode_get_attrib(temp,"value" ), "&", NULL);
 		}
 		temp = xmlnode_get_next_twin(temp);
 	}
-	url = two_strcat(url, query_param);
-	url = two_strcat(url, "=");
+	url = g_strconcat(url, query_param, "=", NULL); 
 	purple_debug_info(TEST_PLUGIN_ID, "returning url %s\n", url);
-	return url;				
+	return url;
+			
 }
 
 
@@ -132,8 +138,8 @@ parse_opensearch(gchar *opensearch_xml_filename)
 			// mozilla uses one Url tag for suggestions
 			if( strcmp(xmlnode_get_attrib(child,"type" ), "text/html") == 0 ){
 				// parse_params and make url
-				//url = get_url_from_params(child);
-				url = g_strdup("http://google.com/search?q=");
+				url = get_url_with_params(child);
+				//url = g_strdup("http://google.com/search?q=");
 				if(url == NULL) {
 					purple_debug_info(TEST_PLUGIN_ID, "error creating url from params\n");
 					return NULL;			
