@@ -80,36 +80,46 @@ static void save_list(void);
 */
 
 static void load_search_engines() {
-    /*
-     * TODO:
-     *
-     * Load xml files from 3 directories: (active|available|default)
-     */
 	search_engine *site;
+    const gchar *key;
 
-    // NOTE: may need custom hash map destroy function to properly destroy structs
-    search_engines = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL); 
+    search_engines = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
 
 	site = g_malloc(sizeof(search_engine));
 	site->name = "Answers";
 	site->query_url = "test_url";
 	site->icon_url = "no_image";
+    key = "Answers";
 
-    g_hash_table_insert(search_engines, site->name, site);
+    g_hash_table_insert(search_engines, g_strdup(key), site);
 
 	site = g_malloc(sizeof(search_engine));
 	site->name = "Google";
 	site->query_url = "test_url";
 	site->icon_url = "no_image";
+    key = "Google";
     
-    g_hash_table_insert(search_engines, site->name, site);
+    g_hash_table_insert(search_engines, g_strdup(key), site);
 
 	site = g_malloc(sizeof(search_engine));
 	site->name = "Wikipedia";
 	site->query_url = "test_url";
 	site->icon_url = "no_image";
+    key = "Wikipedia";
 
-    g_hash_table_insert(search_engines, site->name, site);
+    g_hash_table_insert(search_engines, g_strdup(key), site);
+
+    // view contents of search engine hashtable
+    GList *keys = g_hash_table_get_keys(search_engines);
+    purple_debug_info(TEST_PLUGIN_ID, "Search Engines:\n");
+    while (keys) {
+        search_engine *eng;
+        gpointer key = keys->data;
+
+        eng = g_hash_table_lookup(search_engines, key);
+        purple_debug_info(TEST_PLUGIN_ID, "%s\n", eng->name);
+        keys = keys->next;
+    }
 }
 
 static void active_toggled(GtkCellRendererToggle *cellrenderertoggle,
@@ -272,8 +282,11 @@ static void remove_search_engine(GtkWidget *widget, gpointer selection)
 {
     GtkListStore *store;
     GtkTreeModel *model;
+    GtkTreePath *path;
     GtkTreeIter iter, first_iter;
-    gboolean not_empty;
+    gboolean valid_iter;
+    const gchar *name;
+    GList *engines;
 
     store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(active_list)));
     model = gtk_tree_view_get_model(GTK_TREE_VIEW(active_list));
@@ -283,20 +296,40 @@ static void remove_search_engine(GtkWidget *widget, gpointer selection)
     }
 
     if (gtk_tree_selection_get_selected(GTK_TREE_SELECTION(selection), &model, &iter)) {
+        gtk_tree_model_get(model, &iter, LIST_ITEM, &name, -1);
+        path = gtk_tree_model_get_path(GTK_TREE_MODEL(model), &iter);
         gtk_list_store_remove(store, &iter);
-        not_empty = gtk_tree_model_get_iter_first(model, &first_iter);
-        if (not_empty) {
-            gtk_tree_selection_select_iter(GTK_TREE_SELECTION(selection), &iter);
+        valid_iter = gtk_tree_model_get_iter(GTK_TREE_MODEL(model), &iter, path);
+        if (!valid_iter) {
+            gtk_tree_path_prev(path);
+            valid_iter = gtk_tree_model_get_iter(GTK_TREE_MODEL(model), &iter, path);
         }
+        if (valid_iter) {
+            gtk_tree_selection_select_iter(selection, &iter);
+        }
+        gtk_tree_path_free(path);
     }
 
-    /*
-     * TODO: 
-     *
-     * Get string value of selected search_engine to remove
-     * and remove it from combo box and hashtable.
-     */
+    gpointer orig_key, orig_value;
+    if (g_hash_table_lookup_extended(search_engines, name, &orig_key, &orig_value)) {
+        g_hash_table_remove(search_engines, name);
+        //g_free(orig_key); //segfault-a-licious!
+        //g_free(orig_value); // segfault-a-licious!
+    }
 
+    // sanity check that engine was removed from hashtable
+    engines = g_hash_table_get_values(search_engines);
+    purple_debug_info(TEST_PLUGIN_ID, "Current engines:\n");
+    while (engines) {
+        search_engine *eng;
+        eng = engines->data;
+        purple_debug_info(TEST_PLUGIN_ID, "%s\n", eng->name);
+        engines = engines->next;
+    }
+
+    // TODO: remove from combo box
+
+    g_free(name);
 }
 
 static void list_delete(void)
@@ -523,7 +556,7 @@ static gboolean plugin_load(PurplePlugin *plugin)
 	void *conv_list_handle;
 
     // xml parsing test
-    test_xml();
+    //test_xml();
 	
     // load search engines
     load_search_engines();
@@ -559,6 +592,44 @@ static gboolean plugin_unload(PurplePlugin *plugin)
 		g_object_set_data(G_OBJECT(gtkconv->entry), TEST_OBJECT_KEY, NULL);
 	}
 	*/
+    GHashTable *test;
+	search_engine *site;
+    const gchar *key;
+
+    test = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+
+	site = g_malloc(sizeof(search_engine));
+	site->name = "Answers";
+	site->query_url = "test_url";
+	site->icon_url = "no_image";
+    key = "Answers";
+
+    g_hash_table_insert(test, g_strdup(key), site);
+
+	site = g_malloc(sizeof(search_engine));
+	site->name = "Google";
+	site->query_url = "test_url";
+	site->icon_url = "no_image";
+    key = "Google";
+
+    g_hash_table_insert(test, g_strdup(key), site);
+
+    gpointer orig_key, orig_value;
+    if (g_hash_table_lookup_extended(test, key, &orig_key, &orig_value)) {
+        g_hash_table_remove(test, key);
+        //g_free(orig_key);
+        //g_free(orig_value);
+    }
+
+    //search_engine *se = g_hash_table_lookup(test, key);
+    //purple_debug_info(TEST_PLUGIN_ID, "before remove: %s\n", se->name);
+    //g_hash_table_remove(test, key);
+    search_engine *se2 = g_hash_table_lookup(test, key);
+    if (se2 == NULL) {
+        purple_debug_info(TEST_PLUGIN_ID, "remove successful \n");
+    }
+    //g_hash_table_destroy(test);
+
 	return TRUE;
 }
 
