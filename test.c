@@ -296,6 +296,7 @@ static void remove_search_engine(GtkWidget *widget, gpointer selection)
      * Get string value of selected search_engine to remove
      * and remove it from combo box and hashtable.
      */
+
 }
 
 static void list_delete(void)
@@ -522,7 +523,7 @@ static gboolean plugin_load(PurplePlugin *plugin)
 	void *conv_list_handle;
 
     // xml parsing test
-    //test_xml();
+    test_xml();
 	
     // load search engines
     load_search_engines();
