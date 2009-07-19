@@ -53,16 +53,13 @@ static void remove_widget (GtkWidget *button);
 static void init_conversation (PurpleConversation *conv);
 static void conv_destroyed (PurpleConversation *conv);
 
-static GtkWidget *activeList;
-static GtkWidget *availableList;
+static GtkWidget *active_list;
 
 /* List of sessions */
 static GList *conversations;
 
-/* Maps of search engines */
-static GHashTable *active_engines;
-static GHashTable *available_engines;
-static GHashTable *default_engines;
+/* Map of search engines */
+static GHashTable *search_engines;
 
 PurplePlugin *test_plugin = NULL;
 
@@ -91,38 +88,28 @@ static void load_search_engines() {
 	search_engine *site;
 
     // NOTE: may need custom hash map destroy function to properly destroy structs
-    active_engines = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL); 
-    available_engines = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL); 
-    default_engines = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL); 
+    search_engines = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL); 
 
 	site = g_malloc(sizeof(search_engine));
 	site->name = "Answers";
 	site->query_url = "test_url";
 	site->icon_url = "no_image";
 
-    g_hash_table_insert(active_engines, site->name, site);
-    g_hash_table_insert(available_engines, site->name, site);
+    g_hash_table_insert(search_engines, site->name, site);
 
 	site = g_malloc(sizeof(search_engine));
 	site->name = "Google";
 	site->query_url = "test_url";
 	site->icon_url = "no_image";
     
-    g_hash_table_insert(available_engines, site->name, site);
+    g_hash_table_insert(search_engines, site->name, site);
 
 	site = g_malloc(sizeof(search_engine));
 	site->name = "Wikipedia";
 	site->query_url = "test_url";
 	site->icon_url = "no_image";
 
-    g_hash_table_insert(available_engines, site->name, site);
-
-    /*
-     * At this point we should have the following:
-     *
-     * Active: Answers
-     * Available: Answers, Google, Wikipedia
-     */
+    g_hash_table_insert(search_engines, site->name, site);
 }
 
 static void active_toggled(GtkCellRendererToggle *cellrenderertoggle,
@@ -279,6 +266,36 @@ static void list_add(void)
 
 	save_list();
     */
+}
+
+static void remove_search_engine(GtkWidget *widget, gpointer selection)
+{
+    GtkListStore *store;
+    GtkTreeModel *model;
+    GtkTreeIter iter, first_iter;
+    gboolean not_empty;
+
+    store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(active_list)));
+    model = gtk_tree_view_get_model(GTK_TREE_VIEW(active_list));
+
+    if (gtk_tree_model_get_iter_first(model, &iter) == FALSE) {
+        return;
+    }
+
+    if (gtk_tree_selection_get_selected(GTK_TREE_SELECTION(selection), &model, &iter)) {
+        gtk_list_store_remove(store, &iter);
+        not_empty = gtk_tree_model_get_iter_first(model, &first_iter);
+        if (not_empty) {
+            gtk_tree_selection_select_iter(GTK_TREE_SELECTION(selection), &iter);
+        }
+    }
+
+    /*
+     * TODO: 
+     *
+     * Get string value of selected search_engine to remove
+     * and remove it from combo box and hashtable.
+     */
 }
 
 static void list_delete(void)
@@ -505,7 +522,7 @@ static gboolean plugin_load(PurplePlugin *plugin)
 	void *conv_list_handle;
 
     // xml parsing test
-    test_xml();
+    //test_xml();
 	
     // load search engines
     load_search_engines();
@@ -557,11 +574,29 @@ whole_words_button_toggled(GtkToggleButton *complete_toggle, GtkToggleButton *ca
 
 static void load_config_active_list() {
     GtkListStore *store;
-    GtkTreeIter iter;
+    GtkTreeModel *model;
+    GtkTreeSelection *selection;
+    GtkTreeIter iter, first_iter;
+    GList *engines;
 
-    store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(activeList)));
-    gtk_list_store_append(store, &iter);
-    gtk_list_store_set(store, &iter, LIST_ITEM, "Answers", -1);
+    store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(active_list)));
+
+    engines = g_hash_table_get_values(search_engines);
+    while (engines) {
+        search_engine *eng;
+        eng = engines->data;
+        gtk_list_store_append(store, &iter);
+        gtk_list_store_set(store, &iter, LIST_ITEM, eng->name, -1);
+        engines = engines->next;
+    }
+
+    model = gtk_tree_view_get_model(GTK_TREE_VIEW(active_list));
+    selection = gtk_tree_view_get_selection(GTK_TREE_VIEW(active_list));
+    if (gtk_tree_model_get_iter_first(model, &first_iter) == TRUE) {
+            gtk_tree_selection_select_iter(GTK_TREE_SELECTION(selection), &first_iter);
+    }
+
+    g_list_free(engines);
 }
 
 static GtkWidget * get_config_frame(PurplePlugin *plugin)
@@ -595,27 +630,28 @@ static GtkWidget * get_config_frame(PurplePlugin *plugin)
 	gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(win),
 			GTK_POLICY_NEVER,
 			GTK_POLICY_ALWAYS);
+    gtk_widget_set_size_request(win, 200, 150);
 	gtk_widget_show(win);
 
-    activeList = gtk_tree_view_new();
-    gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(activeList), FALSE);
-    gtk_container_add(GTK_CONTAINER(win), activeList);
-	gtk_widget_show(activeList);
+    active_list = gtk_tree_view_new();
+    gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(active_list), FALSE);
+    gtk_container_add(GTK_CONTAINER(win), active_list);
+	gtk_widget_show(active_list);
 
     // initialize model/store stuff associated with tree view
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes("List Item",
                     renderer, "text", LIST_ITEM, NULL);
-    gtk_tree_view_append_column(GTK_TREE_VIEW(activeList), column);
+    gtk_tree_view_append_column(GTK_TREE_VIEW(active_list), column);
     store = gtk_list_store_new(N_COLUMNS, G_TYPE_STRING);
-    gtk_tree_view_set_model(GTK_TREE_VIEW(activeList), GTK_TREE_MODEL(store));
+    gtk_tree_view_set_model(GTK_TREE_VIEW(active_list), GTK_TREE_MODEL(store));
     g_object_unref(store);
 
     // load the list in the config with current active search engines
     load_config_active_list();
 
-    tree = gtk_tree_view_get_selection(GTK_TREE_VIEW(activeList));
-	//gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(activeList)),
+    tree = gtk_tree_view_get_selection(GTK_TREE_VIEW(active_list));
+	//gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(active_list)),
     //		 GTK_SELECTION_MULTIPLE);
 	//gtk_container_add(GTK_CONTAINER(win), tree);
 
@@ -628,16 +664,16 @@ static GtkWidget * get_config_frame(PurplePlugin *plugin)
     g_signal_connect(G_OBJECT(add), "clicked",
                G_CALLBACK(list_add), NULL); // TODO: make callback function
     gtk_box_pack_start(GTK_BOX(hbox), add, FALSE, FALSE, 0);
-    gtk_widget_set_sensitive(add, FALSE);
+    //gtk_widget_set_sensitive(add, FALSE);
 
     gtk_widget_show(add);
 
     // delete button
 	delete = gtk_button_new_from_stock(GTK_STOCK_DELETE);
 	g_signal_connect(G_OBJECT(delete), "clicked",
-			   G_CALLBACK(list_delete), NULL);
+			   G_CALLBACK(remove_search_engine), tree); // list_delete
 	gtk_box_pack_start(GTK_BOX(hbox), delete, FALSE, FALSE, 0);
-	gtk_widget_set_sensitive(delete, FALSE);
+	//gtk_widget_set_sensitive(delete, FALSE);
 
 	gtk_widget_show(delete);
 
