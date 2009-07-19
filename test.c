@@ -22,12 +22,15 @@
 #include "search_xml_utils.c"
 
 
-
 enum {
+    LIST_ITEM = 0,
+    /*
+    ACTIVE_COLUMN,
 	BAD_COLUMN,
 	GOOD_COLUMN,
 	WORD_ONLY_COLUMN,
 	CASE_SENSITIVE_COLUMN,
+    */
 	N_COLUMNS
 };
 
@@ -45,18 +48,21 @@ typedef struct {
 } MMConversation;
 
 
-
 static void add_widgets (MMConversation *mmconv);
 static void remove_widget (GtkWidget *button);
 static void init_conversation (PurpleConversation *conv);
 static void conv_destroyed (PurpleConversation *conv);
 
+static GtkWidget *activeList;
+static GtkWidget *availableList;
+
 /* List of sessions */
 static GList *conversations;
 
-/* Map of search engines */
-static GHashTable *search_engines;
-
+/* Maps of search engines */
+static GHashTable *active_engines;
+static GHashTable *available_engines;
+static GHashTable *default_engines;
 
 PurplePlugin *test_plugin = NULL;
 
@@ -68,146 +74,60 @@ static void open_url(const gchar *search_term, const gchar *search_engine)
     purple_notify_uri(NULL, url);
 }
 
-static GtkListStore *model;
-
-
-static int buf_get_line(char *ibuf, char **buf, int *position, gsize len)
-{
-	int pos = *position;
-	int spos = pos;
-
-	if (pos == len)
-		return 0;
-
-	while (!(ibuf[pos] == '\n' ||
-	         (ibuf[pos] == '\r' && ibuf[pos + 1] != '\n')))
-	{
-		pos++;
-		if (pos == len)
-			return 0;
-	}
-
-	if (pos != 0 && ibuf[pos] == '\n' && ibuf[pos - 1] == '\r')
-		ibuf[pos - 1] = '\0';
-
-	ibuf[pos] = '\0';
-	*buf = &ibuf[spos];
-
-	pos++;
-	*position = pos;
-
-	return 1;
-}
-
-
-static void load_conf(void)
-{
-	const char * const defaultconf =
-			"BAD abbout\nGOOD about\n"
-            "BAD wand\nGOOD wang\n";
-	gchar *buf;
-	gchar *ibuf;
-	GHashTable *hashes;
-	char bad[82] = "";
-	char good[256] = "";
-	int pnt = 0;
-	gsize size;
-	gboolean complete = TRUE;
-	gboolean case_sensitive = FALSE;
-
-	buf = g_build_filename(purple_user_dir(), "dict", NULL);
-	g_file_get_contents(buf, &ibuf, &size, NULL);
-	g_free(buf);
-	if (!ibuf) {
-		ibuf = g_strdup(defaultconf);
-		size = strlen(defaultconf);
-	}
-
-	model = gtk_list_store_new((gint)N_COLUMNS, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_BOOLEAN, G_TYPE_BOOLEAN);
-	hashes = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
-
-	while (buf_get_line(ibuf, &buf, &pnt, size)) {
-		if (*buf != '#') {
-			if (!g_ascii_strncasecmp(buf, "BAD ", 4))
-			{
-				strncpy(bad, buf + 4, 81);
-			}
-			else if(!g_ascii_strncasecmp(buf, "CASE ", 5))
-			{
-				case_sensitive = *(buf+5) == '0' ? FALSE : TRUE;
-			}
-			else if(!g_ascii_strncasecmp(buf, "COMPLETE ", 9))
-			{
-				complete = *(buf+9) == '0' ? FALSE : TRUE;
-			}
-			else if (!g_ascii_strncasecmp(buf, "GOOD ", 5))
-			{
-				strncpy(good, buf + 5, 255);
-
-				if (*bad && *good && g_hash_table_lookup(hashes, bad) == NULL) {
-					GtkTreeIter iter;
-
-					// We don't actually need to store the good string, since this
-					 // hash is just being used to eliminate duplicate bad strings.
-					// * The value has to be non-NULL so the lookup above will work.
-					//
-					g_hash_table_insert(hashes, g_strdup(bad), GINT_TO_POINTER(1));
-
-					if (!complete)
-						case_sensitive = TRUE;
-
-					gtk_list_store_append(model, &iter);
-					gtk_list_store_set(model, &iter,
-						BAD_COLUMN, bad,
-						GOOD_COLUMN, good,
-						WORD_ONLY_COLUMN, complete,
-						CASE_SENSITIVE_COLUMN, case_sensitive,
-						-1);
-				}
-				bad[0] = '\0';
-				complete = TRUE;
-				case_sensitive = FALSE;
-			}
-		}
-	}
-	g_free(ibuf);
-	g_hash_table_destroy(hashes);
-
-	gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model),
-	                                     0, GTK_SORT_ASCENDING);
-}
-
-static GtkWidget *tree;
+/*
 static GtkWidget *bad_entry;
 static GtkWidget *good_entry;
 static GtkWidget *complete_toggle;
 static GtkWidget *case_toggle;
 static void save_list(void);
+*/
 
-static void on_edited(GtkCellRendererText *cellrenderertext,
-					  gchar *path, gchar *arg2, gpointer data)
-{
-	GtkTreeIter iter;
-	GValue val;
+static void load_search_engines() {
+    /*
+     * TODO:
+     *
+     * Load xml files from 3 directories: (active|available|default)
+     */
+	search_engine *site;
 
-	if (arg2[0] == '\0') {
-		gdk_beep();
-		return;
-	}
+    // NOTE: may need custom hash map destroy function to properly destroy structs
+    active_engines = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL); 
+    available_engines = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL); 
+    default_engines = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL); 
 
-	g_return_if_fail(gtk_tree_model_get_iter_from_string(GTK_TREE_MODEL(model), &iter, path));
-	val.g_type = 0;
-	gtk_tree_model_get_value(GTK_TREE_MODEL(model), &iter, GPOINTER_TO_INT(data), &val);
+	site = g_malloc(sizeof(search_engine));
+	site->name = "Answers";
+	site->query_url = "test_url";
+	site->icon_url = "no_image";
 
-	if (strcmp(arg2, g_value_get_string(&val))) {
-		gtk_list_store_set(model, &iter, GPOINTER_TO_INT(data), arg2, -1);
-		save_list();
-	}
-	g_value_unset(&val);
+    g_hash_table_insert(active_engines, site->name, site);
+    g_hash_table_insert(available_engines, site->name, site);
+
+	site = g_malloc(sizeof(search_engine));
+	site->name = "Google";
+	site->query_url = "test_url";
+	site->icon_url = "no_image";
+    
+    g_hash_table_insert(available_engines, site->name, site);
+
+	site = g_malloc(sizeof(search_engine));
+	site->name = "Wikipedia";
+	site->query_url = "test_url";
+	site->icon_url = "no_image";
+
+    g_hash_table_insert(available_engines, site->name, site);
+
+    /*
+     * At this point we should have the following:
+     *
+     * Active: Answers
+     * Available: Answers, Google, Wikipedia
+     */
 }
 
-static void word_only_toggled(GtkCellRendererToggle *cellrenderertoggle,
-						gchar *path, gpointer data){
+static void active_toggled(GtkCellRendererToggle *cellrenderertoggle,
+						gchar *path, gpointer data) {
+    /*
 	GtkTreeIter iter;
 	gboolean enabled;
 
@@ -226,8 +146,10 @@ static void word_only_toggled(GtkCellRendererToggle *cellrenderertoggle,
 					   -1);
 
 	save_list();
+    */
 }
 
+/*
 static void case_sensitive_toggled(GtkCellRendererToggle *cellrenderertoggle,
 						gchar *path, gpointer data){
 	GtkTreeIter iter;
@@ -278,10 +200,11 @@ static void remove_row(void *data1, gpointer data2)
 	gtk_tree_path_free(path);
 	gtk_tree_row_reference_free(row_reference);
 }
+*/
 
 static void list_add(void)
 {
-    /*
+ /*   
 	GtkTreeIter iter;
 	const char *word = gtk_entry_get_text(GTK_ENTRY(bad_entry));
 	gboolean case_sensitive = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(case_toggle));
@@ -360,6 +283,7 @@ static void list_add(void)
 
 static void list_delete(void)
 {
+    /*
 	GtkTreeSelection *sel;
 	GSList *list = NULL;
 
@@ -370,10 +294,12 @@ static void list_delete(void)
 	g_slist_free(list);
 
 	save_list();
+    */
 }
 
 static void save_list()
 {
+    /*
 	GString *data;
 	GtkTreeIter iter;
 
@@ -413,6 +339,7 @@ static void save_list()
 	purple_util_write_data_to_file("dict", data->str, -1);
 
 	g_string_free(data, TRUE);
+    */
 }
 
 #if !GTK_CHECK_VERSION(2,2,0)
@@ -423,17 +350,6 @@ static void count_selected_helper(GtkTreeModel *model, GtkTreePath *path,
 }
 #endif
 
-static void on_selection_changed(GtkTreeSelection *sel, gpointer data)
-{
-	gint num_selected;
-#if GTK_CHECK_VERSION(2,2,0)
-	num_selected = gtk_tree_selection_count_selected_rows(sel);
-#else
-	gtk_tree_selection_selected_foreach(sel, count_selected_helper, &num_selected);
-#endif
-	gtk_widget_set_sensitive((GtkWidget*)data, (num_selected > 0));
-}
-
 static gboolean non_empty(const char *s)
 {
 	while (*s && g_ascii_isspace(*s))
@@ -443,9 +359,11 @@ static gboolean non_empty(const char *s)
 
 static void on_entry_changed(GtkEditable *editable, gpointer data)
 {
+    /*
 	gtk_widget_set_sensitive((GtkWidget*)data,
 		non_empty(gtk_entry_get_text(GTK_ENTRY(bad_entry))) &&
 		non_empty(gtk_entry_get_text(GTK_ENTRY(good_entry))));
+        */
 }
 
 
@@ -547,11 +465,11 @@ static void add_widgets (MMConversation *mmconv)
 
     // setup combo box
     combo_box = gtk_combo_box_new_text();
-    gtk_combo_box_append_text(GTK_COMBO_BOX (combo_box), "Google");
-    gtk_combo_box_append_text(GTK_COMBO_BOX (combo_box), "Yahoo");
-    gtk_combo_box_append_text(GTK_COMBO_BOX (combo_box), "Answers");
-    gtk_combo_box_append_text (GTK_COMBO_BOX (combo_box), "Wikipedia");
-    gtk_combo_box_set_active(combo_box, 0);
+    //gtk_combo_box_append_text(GTK_COMBO_BOX (combo_box), "Google");
+    //gtk_combo_box_append_text(GTK_COMBO_BOX (combo_box), "Yahoo");
+    //gtk_combo_box_append_text(GTK_COMBO_BOX (combo_box), "Answers");
+    //gtk_combo_box_append_text (GTK_COMBO_BOX (combo_box), "Wikipedia");
+    //gtk_combo_box_set_active(combo_box, 0);
 	
 	mmconv->seperator = sep;
     mmconv->combo_box = combo_box;
@@ -586,17 +504,15 @@ static gboolean plugin_load(PurplePlugin *plugin)
 {
 	void *conv_list_handle;
 
-    // xml test
+    // xml parsing test
     test_xml();
 	
-    // TODO: parse search engine xml files
-    search_engines = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL); // NOTE: may need custom function to destroy struct value
+    // load search engines
+    load_search_engines();
 
     test_plugin = plugin;
 
     purple_conversation_foreach(init_conversation);
-
-	load_conf();
 
 	/* Listen for any new conversations */
 	conv_list_handle = purple_conversations_get_handle();
@@ -628,6 +544,7 @@ static gboolean plugin_unload(PurplePlugin *plugin)
 	return TRUE;
 }
 
+/*
 static void
 whole_words_button_toggled(GtkToggleButton *complete_toggle, GtkToggleButton *case_toggle)
 {
@@ -636,18 +553,33 @@ whole_words_button_toggled(GtkToggleButton *complete_toggle, GtkToggleButton *ca
 	gtk_toggle_button_set_active(case_toggle, !enabled);
 	gtk_widget_set_sensitive(GTK_WIDGET(case_toggle), enabled);
 }
+*/
+
+static void load_config_active_list() {
+    GtkListStore *store;
+    GtkTreeIter iter;
+
+    store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(activeList)));
+    gtk_list_store_append(store, &iter);
+    gtk_list_store_set(store, &iter, LIST_ITEM, "Answers", -1);
+}
 
 static GtkWidget * get_config_frame(PurplePlugin *plugin)
 {
 	GtkWidget *ret, *vbox, *win;
 	GtkWidget *hbox;
-	GtkWidget *button;
+
+    GtkTreeSelection *tree;
+
+    GtkCellRenderer *renderer;
+    GtkTreeViewColumn *column;
+    GtkListStore *store;
+
+	GtkWidget *add;
+    GtkWidget *delete;
+
 	GtkSizeGroup *sg;
 	GtkSizeGroup *sg2;
-	GtkCellRenderer *renderer;
-	GtkTreeViewColumn *column;
-	GtkWidget *vbox2;
-	GtkWidget *vbox3;
 
 	ret = gtk_vbox_new(FALSE, PIDGIN_HIG_CAT_SPACE);
 	gtk_container_set_border_width (GTK_CONTAINER(ret), PIDGIN_HIG_BORDER);
@@ -665,160 +597,54 @@ static GtkWidget * get_config_frame(PurplePlugin *plugin)
 			GTK_POLICY_ALWAYS);
 	gtk_widget_show(win);
 
-	tree = gtk_tree_view_new_with_model(GTK_TREE_MODEL(model));
-	gtk_tree_view_set_rules_hint(GTK_TREE_VIEW(tree), TRUE);
-	gtk_widget_set_size_request(tree, -1, 200);
+    activeList = gtk_tree_view_new();
+    gtk_tree_view_set_headers_visible(GTK_TREE_VIEW(activeList), FALSE);
+    gtk_container_add(GTK_CONTAINER(win), activeList);
+	gtk_widget_show(activeList);
 
-    // TODO: initially add default search engines
-	//gtk_list_store_append(model, &iter);
+    // initialize model/store stuff associated with tree view
+    renderer = gtk_cell_renderer_text_new();
+    column = gtk_tree_view_column_new_with_attributes("List Item",
+                    renderer, "text", LIST_ITEM, NULL);
+    gtk_tree_view_append_column(GTK_TREE_VIEW(activeList), column);
+    store = gtk_list_store_new(N_COLUMNS, G_TYPE_STRING);
+    gtk_tree_view_set_model(GTK_TREE_VIEW(activeList), GTK_TREE_MODEL(store));
+    g_object_unref(store);
 
-    /*
-	renderer = gtk_cell_renderer_text_new();
-	g_object_set(G_OBJECT(renderer),
-		"editable", TRUE,
-		NULL);
-	g_signal_connect(G_OBJECT(renderer), "edited",
-		G_CALLBACK(on_edited), GINT_TO_POINTER(0));
-	column = gtk_tree_view_column_new_with_attributes(_("You type"), renderer,
-													  "text", BAD_COLUMN,
-													  NULL);
-	gtk_tree_view_column_set_sizing(column, GTK_TREE_VIEW_COLUMN_FIXED);
-	gtk_tree_view_column_set_fixed_width(column, 150);
-	gtk_tree_view_column_set_resizable(column, TRUE);
-	gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
+    // load the list in the config with current active search engines
+    load_config_active_list();
 
-	renderer = gtk_cell_renderer_text_new();
-	g_object_set(G_OBJECT(renderer),
-		"editable", TRUE,
-		NULL);
-	g_signal_connect(G_OBJECT(renderer), "edited",
-		G_CALLBACK(on_edited), GINT_TO_POINTER(1));
-	column = gtk_tree_view_column_new_with_attributes(_("You send"), renderer,
-													  "text", GOOD_COLUMN,
-													  NULL);
-	gtk_tree_view_column_set_sizing(column, GTK_TREE_VIEW_COLUMN_FIXED);
-	gtk_tree_view_column_set_fixed_width(column, 150);
-	gtk_tree_view_column_set_resizable(column, TRUE);
-	gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
-
-	renderer = gtk_cell_renderer_toggle_new();
-	g_object_set(G_OBJECT(renderer),
-		"activatable", TRUE,
-		NULL);
-	g_signal_connect(G_OBJECT(renderer), "toggled",
-		G_CALLBACK(word_only_toggled), NULL);
-	column = gtk_tree_view_column_new_with_attributes(_("Whole words only"), renderer,
-													  "active", WORD_ONLY_COLUMN,
-													  NULL);
-	gtk_tree_view_column_set_resizable(column, TRUE);
-	gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
-
-	renderer = gtk_cell_renderer_toggle_new();
-	g_object_set(G_OBJECT(renderer),
-		"activatable", TRUE,
-		NULL);
-	g_signal_connect(G_OBJECT(renderer), "toggled",
-		G_CALLBACK(case_sensitive_toggled), NULL);
-	column = gtk_tree_view_column_new_with_attributes(_("Case sensitive"), renderer,
-													  "active", CASE_SENSITIVE_COLUMN,
-													  NULL);
-	gtk_tree_view_column_set_resizable(column, TRUE);
-	gtk_tree_view_append_column(GTK_TREE_VIEW(tree), column);
-    */
-
-	gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(tree)),
-		 GTK_SELECTION_MULTIPLE);
-	gtk_container_add(GTK_CONTAINER(win), tree);
-	gtk_widget_show(tree);
+    tree = gtk_tree_view_get_selection(GTK_TREE_VIEW(activeList));
+	//gtk_tree_selection_set_mode(gtk_tree_view_get_selection(GTK_TREE_VIEW(activeList)),
+    //		 GTK_SELECTION_MULTIPLE);
+	//gtk_container_add(GTK_CONTAINER(win), tree);
 
 	hbox = gtk_hbutton_box_new();
 	gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 	gtk_widget_show(hbox);
 
     // add button
-    button = gtk_button_new_from_stock(GTK_STOCK_ADD);
-    g_signal_connect(G_OBJECT(button), "clicked",
+    add = gtk_button_new_from_stock(GTK_STOCK_ADD);
+    g_signal_connect(G_OBJECT(add), "clicked",
                G_CALLBACK(list_add), NULL); // TODO: make callback function
-    gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
-    gtk_widget_set_sensitive(button, FALSE);
+    gtk_box_pack_start(GTK_BOX(hbox), add, FALSE, FALSE, 0);
+    gtk_widget_set_sensitive(add, FALSE);
 
-	g_signal_connect(G_OBJECT(gtk_tree_view_get_selection(GTK_TREE_VIEW(tree))),
-		"changed", G_CALLBACK(on_selection_changed), button);
-
-    gtk_widget_show(button);
+    gtk_widget_show(add);
 
     // delete button
-	button = gtk_button_new_from_stock(GTK_STOCK_DELETE);
-	g_signal_connect(G_OBJECT(button), "clicked",
+	delete = gtk_button_new_from_stock(GTK_STOCK_DELETE);
+	g_signal_connect(G_OBJECT(delete), "clicked",
 			   G_CALLBACK(list_delete), NULL);
-	gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
-	gtk_widget_set_sensitive(button, FALSE);
+	gtk_box_pack_start(GTK_BOX(hbox), delete, FALSE, FALSE, 0);
+	gtk_widget_set_sensitive(delete, FALSE);
 
-	g_signal_connect(G_OBJECT(gtk_tree_view_get_selection(GTK_TREE_VIEW(tree))),
-		"changed", G_CALLBACK(on_selection_changed), button);
-
-	gtk_widget_show(button);
-
-    /*
-	vbox = pidgin_make_frame(ret, _("Add a new text replacement"));
-
-	hbox = gtk_hbox_new(FALSE, PIDGIN_HIG_BOX_SPACE);
-	gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
-	gtk_widget_show(hbox);
-	vbox2 = gtk_vbox_new(FALSE, PIDGIN_HIG_BOX_SPACE);
-	gtk_box_pack_start(GTK_BOX(hbox), vbox2, TRUE, TRUE, 0);
-	gtk_widget_show(vbox2);
-
-	sg = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
-	sg2 = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
-
-	bad_entry = gtk_entry_new();
-	// Set a minimum size. Since they're in a size group, the other entry will match up. 
-	gtk_widget_set_size_request(bad_entry, 350, -1);
-	gtk_size_group_add_widget(sg2, bad_entry);
-	pidgin_add_widget_to_vbox(GTK_BOX(vbox2), _("You _type:"), sg, bad_entry, FALSE, NULL);
-
-	good_entry = gtk_entry_new();
-	gtk_size_group_add_widget(sg2, good_entry);
-	pidgin_add_widget_to_vbox(GTK_BOX(vbox2), _("You _send:"), sg, good_entry, FALSE, NULL);
-
-	// Created here so it can be passed to whole_words_button_toggled. 
-	case_toggle = gtk_check_button_new_with_mnemonic(_("_Exact case match (uncheck for automatic case handling)"));
-
-	complete_toggle = gtk_check_button_new_with_mnemonic(_("Only replace _whole words"));
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(complete_toggle), TRUE);
-	g_signal_connect(G_OBJECT(complete_toggle), "clicked",
-                         G_CALLBACK(whole_words_button_toggled), case_toggle);
-	gtk_widget_show(complete_toggle);
-	gtk_box_pack_start(GTK_BOX(vbox2), complete_toggle, FALSE, FALSE, 0);
-
-	// The button is created above so it can be passed to whole_words_button_toggled. 
-	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(case_toggle), FALSE);
-	gtk_widget_show(case_toggle);
-	gtk_box_pack_start(GTK_BOX(vbox2), case_toggle, FALSE, FALSE, 0);
-
-	button = gtk_button_new_from_stock(GTK_STOCK_ADD);
-	g_signal_connect(G_OBJECT(button), "clicked",
-			   G_CALLBACK(list_add_new), NULL);
-	vbox3 = gtk_vbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(hbox), vbox3, TRUE, FALSE, 0);
-	gtk_widget_show(vbox3);
-	gtk_box_pack_end(GTK_BOX(vbox3), button, FALSE, FALSE, 0);
-	g_signal_connect(G_OBJECT(bad_entry), "changed", G_CALLBACK(on_entry_changed), button);
-	g_signal_connect(G_OBJECT(good_entry), "changed", G_CALLBACK(on_entry_changed), button);
-	gtk_widget_set_sensitive(button, FALSE);
-	gtk_widget_show(button);
-    */
-
-#if 0
-	vbox = pidgin_make_frame(ret, _("General Text Replacement Options"));
-	pidgin_prefs_checkbox(_("Enable replacement of last word on send"),
-	                        "/plugins/gtk/spellchk/last_word_replace", vbox);
-#endif
+	gtk_widget_show(delete);
 
 	gtk_widget_show_all(ret);
 	g_object_unref(sg);
 	g_object_unref(sg2);
+
 	return ret;
 }
 
@@ -846,7 +672,7 @@ static PurplePluginInfo info = {
 	NULL,
 	PURPLE_PRIORITY_DEFAULT,
     TEST_PLUGIN_ID,
-	N_("Test"),
+	N_("A Test"),
 	DISPLAY_VERSION, /* This constant is defined in config.h, but you shouldn't use it for
 		                your own plugins.  We use it here because it's our plugin. And we're lazy. */
 	N_("This is a test plugin."),
