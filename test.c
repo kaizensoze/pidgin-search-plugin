@@ -369,6 +369,8 @@ static void remove_search_engine(GtkWidget *widget, gpointer selection)
     //    conversations = conversations->next;
     //}
 
+    // TODO: remove corresponding xml file
+
     g_free(name);
 }
 

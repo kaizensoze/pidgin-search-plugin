@@ -23,6 +23,7 @@ typedef struct {
     gchar *name;
     gchar *query_url;
     gchar *icon_url;
+    gchar *filename;
 } search_engine;
 
 /*
