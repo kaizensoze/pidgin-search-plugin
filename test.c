@@ -355,17 +355,19 @@ static void remove_search_engine(GtkWidget *widget, gpointer selection)
     }
     g_list_free(engines);
 
-    // TODO: remove from combo box
-    while (conversations) {
-        MMConversation *mmconv;
-        GtkComboBox *combo_box;
-        GtkTreeModel *model;
-        mmconv = conversations->data;
-        combo_box = (GtkComboBox *)mmconv->combo_box;
-        model = gtk_combo_box_get_model(combo_box);
-        gtk_tree_model_foreach(model, check_combo_entry, name);
-        conversations = conversations->next;
-    }
+    /*
+     * FIXME: broken
+     */
+    //while (conversations) {
+    //    MMConversation *mmconv;
+    //    GtkComboBox *combo_box;
+    //    GtkTreeModel *model;
+    //    mmconv = conversations->data;
+    //    combo_box = (GtkComboBox *)mmconv->combo_box;
+    //    model = gtk_combo_box_get_model(combo_box);
+    //    gtk_tree_model_foreach(model, check_combo_entry, name);
+    //    conversations = conversations->next;
+    //}
 
     g_free(name);
 }
