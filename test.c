@@ -64,11 +64,20 @@ static GHashTable *search_engines;
 PurplePlugin *test_plugin = NULL;
 
 
-static void open_url(const gchar *search_term, const gchar *search_engine)
+static void open_url(const gchar *search_term, const gchar *selected_search_engine)
 {
-    gchar *url = g_strconcat("http://www.google.com/#hl=en&q=", search_term, NULL);
+    /*
+     * TODO:
+     * 
+     * The query urls associated with search engines will contain {search_term}
+     * or something like that. A replace_string utility method will be needed
+     * to replace the substring "{search_term}" with the actual search_term.
+     */
+	search_engine *se;
+    se = g_hash_table_lookup(search_engines, selected_search_engine);
+    gchar *search_url = g_strconcat(se->query_url, search_term, NULL);
     purple_debug_info(TEST_PLUGIN_ID, "search_term: %s\n", search_term);
-    purple_notify_uri(NULL, url);
+    purple_notify_uri(NULL, search_url);
 }
 
 /*
@@ -87,7 +96,7 @@ static void load_search_engines() {
 
 	site = g_malloc(sizeof(search_engine));
 	site->name = "Answers";
-	site->query_url = "test_url";
+	site->query_url = "http://www.answers.com/topic/";
 	site->icon_url = "no_image";
     key = "Answers";
 
@@ -95,7 +104,7 @@ static void load_search_engines() {
 
 	site = g_malloc(sizeof(search_engine));
 	site->name = "Google";
-	site->query_url = "test_url";
+	site->query_url = "http://www.google.com/#hl=en&q=";
 	site->icon_url = "no_image";
     key = "Google";
     
@@ -103,7 +112,7 @@ static void load_search_engines() {
 
 	site = g_malloc(sizeof(search_engine));
 	site->name = "Wikipedia";
-	site->query_url = "test_url";
+	site->query_url = "http://en.wikipedia.org/wiki/";
 	site->icon_url = "no_image";
     key = "Wikipedia";
 
@@ -278,9 +287,20 @@ static void list_add(void)
     */
 }
 
-static gboolean check_combo_entry(GtkTreeModel *model, gpointer data)
+static gboolean check_combo_entry(GtkTreeModel *model, GtkTreeIter *iter, gpointer data)
 {
+    GtkListStore *store;
+    gchar *name, *name_to_remove;
 
+    gtk_tree_model_get(model, iter, 0, &name, -1);
+    store = GTK_LIST_STORE(model);
+    if (g_strncasecmp(name, name_to_remove, sizeof(name_to_remove))) {
+        gtk_list_store_remove(store, iter);
+        purple_debug_info(TEST_PLUGIN_ID, "removed %s from combo_box\n", name_to_remove);
+        return TRUE;
+    }
+
+    return FALSE;
 }
 
 static void remove_search_engine(GtkWidget *widget, gpointer selection)
@@ -335,18 +355,17 @@ static void remove_search_engine(GtkWidget *widget, gpointer selection)
     }
     g_list_free(engines);
 
-    /*
     // TODO: remove from combo box
     while (conversations) {
+        MMConversation *mmconv;
         GtkComboBox *combo_box;
         GtkTreeModel *model;
-        gint pos;
-        combo_box = conversations->data->combo_box;
+        mmconv = conversations->data;
+        combo_box = (GtkComboBox *)mmconv->combo_box;
         model = gtk_combo_box_get_model(combo_box);
         gtk_tree_model_foreach(model, check_combo_entry, name);
-        gtk_combo_box_remove_text(combo_box, pos);
+        conversations = conversations->next;
     }
-    */
 
     g_free(name);
 }
@@ -539,6 +558,7 @@ static void add_widgets (MMConversation *mmconv)
 	gtk_container_add((GtkContainer *)button, button_image);
 
     // setup combo box
+    purple_debug_info(TEST_PLUGIN_ID, "setting up combo_box\n");
     store = gtk_list_store_new(1, G_TYPE_STRING);
 
     engines = g_hash_table_get_values(search_engines);
