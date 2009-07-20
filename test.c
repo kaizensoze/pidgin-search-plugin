@@ -278,6 +278,11 @@ static void list_add(void)
     */
 }
 
+static gboolean check_combo_entry(GtkTreeModel *model, gpointer data)
+{
+
+}
+
 static void remove_search_engine(GtkWidget *widget, gpointer selection)
 {
     GtkListStore *store;
@@ -285,7 +290,9 @@ static void remove_search_engine(GtkWidget *widget, gpointer selection)
     GtkTreePath *path;
     GtkTreeIter iter, first_iter;
     gboolean valid_iter;
+
     const gchar *name;
+
     GList *engines;
 
     store = GTK_LIST_STORE(gtk_tree_view_get_model(GTK_TREE_VIEW(active_list)));
@@ -326,8 +333,20 @@ static void remove_search_engine(GtkWidget *widget, gpointer selection)
         purple_debug_info(TEST_PLUGIN_ID, "%s\n", eng->name);
         engines = engines->next;
     }
+    g_list_free(engines);
 
+    /*
     // TODO: remove from combo box
+    while (conversations) {
+        GtkComboBox *combo_box;
+        GtkTreeModel *model;
+        gint pos;
+        combo_box = conversations->data->combo_box;
+        model = gtk_combo_box_get_model(combo_box);
+        gtk_tree_model_foreach(model, check_combo_entry, name);
+        gtk_combo_box_remove_text(combo_box, pos);
+    }
+    */
 
     g_free(name);
 }
@@ -498,8 +517,13 @@ static void search_button_clicked (GtkWidget *widget, gpointer data)
 static void add_widgets (MMConversation *mmconv)
 {
 	PurpleConversation *conv = mmconv->conv;
+    GList *engines;
+    guint count = 0;
 	
 	GtkWidget *sep, *button, *button_image, *combo_box;
+    GtkListStore *store;
+    GtkTreeIter iter;
+    GtkCellRendererText *cell;
 	gchar *button_image_file_path;
 
 	sep = gtk_vseparator_new();
@@ -515,12 +539,29 @@ static void add_widgets (MMConversation *mmconv)
 	gtk_container_add((GtkContainer *)button, button_image);
 
     // setup combo box
-    combo_box = gtk_combo_box_new_text();
-    //gtk_combo_box_append_text(GTK_COMBO_BOX (combo_box), "Google");
-    //gtk_combo_box_append_text(GTK_COMBO_BOX (combo_box), "Yahoo");
-    //gtk_combo_box_append_text(GTK_COMBO_BOX (combo_box), "Answers");
-    //gtk_combo_box_append_text (GTK_COMBO_BOX (combo_box), "Wikipedia");
-    //gtk_combo_box_set_active(combo_box, 0);
+    store = gtk_list_store_new(1, G_TYPE_STRING);
+
+    engines = g_hash_table_get_values(search_engines);
+    while (engines) {
+        search_engine *eng;
+        eng = engines->data;
+        gtk_list_store_append(store, &iter);
+        gtk_list_store_set(store, &iter, 0, eng->name, -1);
+        engines = engines->next;
+        count += 1;
+    }
+    g_list_free(engines);
+
+    combo_box = gtk_combo_box_new_with_model(GTK_TREE_MODEL(store));
+    g_object_unref(store);
+
+    cell = gtk_cell_renderer_text_new();
+    gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo_box), cell, TRUE);
+    gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo_box), cell, "text", 0, NULL);
+
+    if (count > 0) {
+        gtk_combo_box_set_active(combo_box, 0);
+    }
 	
 	mmconv->seperator = sep;
     mmconv->combo_box = combo_box;
@@ -628,7 +669,9 @@ static gboolean plugin_unload(PurplePlugin *plugin)
     if (se2 == NULL) {
         purple_debug_info(TEST_PLUGIN_ID, "remove successful \n");
     }
-    //g_hash_table_destroy(test);
+    g_hash_table_destroy(test);
+
+    // g_hash_table_destroy(search_engines);
 
 	return TRUE;
 }
