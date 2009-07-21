@@ -19,12 +19,32 @@
 #define TEST_PLUGIN_ID "gtk-test"
 #define TEST_OBJECT_KEY "test"
 #define two_strcat(x,y) (g_strconcat(x,y,NULL))
+
+// 	filename is name only, not path!
+// 	dir to use will be (linux)
+// 	~/.purple/opensearch_files/
+#define LINUX_PIDGIN_PREF_DIR "/home/ratjed/.purple/"	
+#define LINUX_OPENSEARCH_FILES "opensearch_files/"
+// 	/usr/lib/pidgin/default_opensearch_files/
+#define LINUX_OPENSEARCH_FILES_DEFAULT "/usr/lib/pidgin/default_opensearch_files/"
+// 	(windows)
+// 	%USER_HOME%\\Application%20Data\.purple\opensearch_files\
+//#define WINDOWS_OPENSEARCH_FILES "%USER_HOME%\\Application Data\.purple\opensearch_files\"
+// 	%PROGRAM_FILES%\Pidgin\default_opensearch_files\
+//#define WINDOWS_OPENSEARCH_FILES_DEFAULT "%PROGRAM_FILES%\Pidgin\default_opensearch_files\"
+	
+	
 typedef struct {
     gchar *name;
     gchar *query_url;
     gchar *icon_url;
     gchar *filename;
 } search_engine;
+
+/* Map of search engines */
+static GHashTable *search_engines;
+static void load_search_engine(search_engine *site);
+
 
 /*
 int get_params_length(xmlnode * firstParamNode){
@@ -95,11 +115,12 @@ gchar* get_url_with_params(xmlnode * child){
 /*	
 	parse_opensearch
 	@param opensearch_xml_filename the name of the opensearch xml file 
-	@return the search_engine struct with URL information from the given 
+	@return the search_engine struct with URL information from the given opensearch file
 */
 static search_engine*
 parse_opensearch(gchar *opensearch_xml_filename)
-{
+{	
+	//TODO if there is no ShortName use the longname, if there is no LongName or ShortName, invalid?
 	search_engine* result;
 	int buffer_len = 0;
 	gchar *url = "", *query_param  = "", *search_name = "";
@@ -174,24 +195,77 @@ parse_opensearch(gchar *opensearch_xml_filename)
 	result->icon_url = NULL;
 	return result;	
 }
-/*
-	Need a function to get all opensearch xml files in a given folder
-	(i.e. the installed searches).
-*/
+
+
 
 /*
-	Need a function to copy a given file to the opensearch plugins directory
+	Definitely need a function to get all opensearch xml files in a given folder
+	(i.e. the installed searches).
+*/
+void load_all_from_opensearch_files_dir(void){	
+	char* temp_name = NULL;
+	search_engine* temp_result = NULL;
+	GDir *  opsdir =  NULL;
+	purple_debug_info(TEST_PLUGIN_ID, "Opening dir: %s\n", g_strconcat(LINUX_PIDGIN_PREF_DIR, LINUX_OPENSEARCH_FILES, NULL) );
+	opsdir = g_dir_open (g_strconcat(LINUX_PIDGIN_PREF_DIR, LINUX_OPENSEARCH_FILES, NULL), 0, NULL);
+	if(opsdir == NULL) purple_debug_info(TEST_PLUGIN_ID, "directory handle is NULL\n" );
+	// making a new list wether there is a list in memory or not
+	// but we should later check if there is one there and free it properly if its there 
+	
+	search_engines = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+	temp_name = g_dir_read_name(opsdir);
+	while( temp_name != NULL ){		 
+		if(temp_name[0] != '.'){
+			temp_result = parse_opensearch( g_strconcat(LINUX_OPENSEARCH_FILES,temp_name, NULL) );
+			// put temp_result in the hash table
+			load_search_engine(temp_result);
+		}
+		
+		temp_name = g_dir_read_name(opsdir);
+	}
+	g_dir_close(opsdir);
+	
+	/*
+    // view contents of search engine hashtable
+    GList *keys = g_hash_table_get_keys(search_engines);
+    purple_debug_info(TEST_PLUGIN_ID, "Search Engines:\n");
+    while (keys) {
+        search_engine *eng;
+        gpointer key = keys->data;
+
+        eng = g_hash_table_lookup(search_engines, key);
+        purple_debug_info(TEST_PLUGIN_ID, "%s\n", eng->name);
+        keys = keys->next;
+    }*/
+    
+}
+
+static void load_search_engine(search_engine *site) {	
+    const gchar *key;
+    site->icon_url = g_strdup("no_image"); // <- this string exists on the heap without using g_strdup
+    key = site->name;
+    g_hash_table_insert(search_engines, g_strdup(key), site);
+
+}
+
+/*
+	Maybe need a function to copy a given file to the opensearch plugins directory
 	(i.e. to install a search)
 */
 
 /*	
-	Need a function to delete a given file from the opensearch plugins directory
+	Definitely Need a function to delete a given file from the opensearch plugins directory
 	(i.e. to uninstall a search)
 */
+int delete_from_opensearch_files_dir(gchar *filename){
+	return 0;
+
+}
 
 static void test_xml()
 {
-	search_engine* test = NULL;
+	load_all_from_opensearch_files_dir();
+	/*search_engine* test = NULL;
 	test = parse_opensearch("google_search-opensearch.xml");
 	if(test != NULL){
 		purple_debug_info(TEST_PLUGIN_ID, "%s\n", test->name);
@@ -200,6 +274,7 @@ static void test_xml()
 	} else {
 		purple_debug_info(TEST_PLUGIN_ID, "error getting search_engine struct\n");
 	}
+	*/
 	
 	//int i = 0, ii = 0;
 	//xmlnode *node = NULL;//, *temp = NULL;	
