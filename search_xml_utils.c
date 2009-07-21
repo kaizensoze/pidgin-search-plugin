@@ -217,6 +217,9 @@ void load_all_from_opensearch_files_dir(void){
 	while( temp_name != NULL ){		 
 		if(temp_name[0] != '.'){
 			temp_result = parse_opensearch( g_strconcat(LINUX_OPENSEARCH_FILES,temp_name, NULL) );
+			if(temp_result != NULL){
+				temp_result->filename = g_strdup(temp_name);
+			}
 			// put temp_result in the hash table
 			load_search_engine(temp_result);
 		}
@@ -256,10 +259,13 @@ static void load_search_engine(search_engine *site) {
 /*	
 	Definitely Need a function to delete a given file from the opensearch plugins directory
 	(i.e. to uninstall a search)
+	@param filename name of opensearch file to delete, filename must just be a name, not a full path
+	@return 0 if no err, -1 if error
 */
 int delete_from_opensearch_files_dir(gchar *filename){
-	return 0;
-
+	int result = -1;
+	result = g_remove(g_strconcat(LINUX_PIDGIN_PREF_DIR, LINUX_OPENSEARCH_FILES, filename,NULL) );
+	return result;
 }
 
 static void test_xml()
