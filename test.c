@@ -59,7 +59,8 @@ static GtkWidget *active_list;
 static GList *conversations;
 
 /* Map of search engines */
-static GHashTable *search_engines;
+//static GHashTable *search_engines;
+// moved to the utility include
 
 PurplePlugin *test_plugin = NULL;
 
@@ -89,9 +90,12 @@ static void save_list(void);
 */
 
 static void load_search_engines() {
+	load_all_from_opensearch_files_dir();
+	
+	/*	
 	search_engine *site;
     const gchar *key;
-
+	
     search_engines = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
 
 	site = g_malloc(sizeof(search_engine));
@@ -129,6 +133,7 @@ static void load_search_engines() {
         purple_debug_info(TEST_PLUGIN_ID, "%s\n", eng->name);
         keys = keys->next;
     }
+    */
 }
 
 static void active_toggled(GtkCellRendererToggle *cellrenderertoggle,
@@ -370,6 +375,7 @@ static void remove_search_engine(GtkWidget *widget, gpointer selection)
     //}
 
     // TODO: remove corresponding xml file
+    // user helper function from xml utils include
 
     g_free(name);
 }
