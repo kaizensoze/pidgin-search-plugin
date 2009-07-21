@@ -41,9 +41,43 @@ typedef struct {
     gchar *filename;
 } search_engine;
 
+
 /* Map of search engines */
 static GHashTable *search_engines;
-static void load_search_engine(search_engine *site);
+static void insert_search_engine(search_engine *site);
+int delete_from_opensearch_files_dir(gchar *filename);
+
+void destroy_search_engine_struct(search_engine* ptr){
+	g_free(ptr->name);
+	g_free(ptr->query_url);
+	g_free(ptr->icon_url);
+	g_free(ptr->filename);	
+}
+
+/*
+	destroy_search_engine
+	deletes the entry in the hash table with the key 'key'. Deletes the XML file
+	associated with the search. Frees the memory used by the search struct.
+	@parm key the unique key to find the search_engine struct from the hash table
+*/
+void destroy_search_engine(gchar* key){
+	search_engine* search_engine_to_remove;	
+	gpointer orig_key, orig_value;
+	if (g_hash_table_lookup_extended(search_engines, key, &orig_key, &orig_value)) {
+        	search_engine_to_remove =  g_hash_table_lookup(search_engines, key); 
+        	g_hash_table_remove(search_engines, key);
+        
+        //g_free(orig_key); //segfault-a-licious!
+        //g_free(orig_value); // segfault-a-licious!
+    }
+    // TODO: remove corresponding xml file
+    
+    if( search_engine_to_remove != NULL) delete_from_opensearch_files_dir(search_engine_to_remove->filename);
+    destroy_search_engine_struct(search_engine_to_remove);	
+}
+
+
+
 
 
 /*
@@ -221,7 +255,7 @@ void load_all_from_opensearch_files_dir(void){
 				temp_result->filename = g_strdup(temp_name);
 			}
 			// put temp_result in the hash table
-			load_search_engine(temp_result);
+			insert_search_engine(temp_result);
 		}
 		
 		temp_name = g_dir_read_name(opsdir);
@@ -243,12 +277,23 @@ void load_all_from_opensearch_files_dir(void){
     
 }
 
-static void load_search_engine(search_engine *site) {	
-    const gchar *key;
+static void insert_search_engine(search_engine *site) {	
+    gpointer orig_key, orig_value;
+    const gchar *key, *temp;
+    int u = 1;
     site->icon_url = g_strdup("no_image"); // <- this string exists on the heap without using g_strdup
-    key = site->name;
+    key = site->filename;
+   
+    /*while(g_hash_table_lookup_extended(search_engines, key, &orig_key, &orig_value)) {
+    	//g_free(key);
+    	key = g_strdup(site->name);
+    	temp = atoi(u);
+    	key = g_strconcat(key,temp, NULL);
+    	//g_free(temp);    	
+    }*/
+    
     g_hash_table_insert(search_engines, g_strdup(key), site);
-
+    //g_free(key);
 }
 
 /*
