@@ -315,7 +315,7 @@ static void remove_search_engine(GtkWidget *widget, gpointer selection)
     GtkTreePath *path;
     GtkTreeIter iter, first_iter;
     gboolean valid_iter;
-
+    search_engine *search_engine_to_remove;
     const gchar *name;
 
     GList *engines;
@@ -344,7 +344,9 @@ static void remove_search_engine(GtkWidget *widget, gpointer selection)
 
     gpointer orig_key, orig_value;
     if (g_hash_table_lookup_extended(search_engines, name, &orig_key, &orig_value)) {
+        search_engine_to_remove =  g_hash_table_lookup(search_engines, name); 
         g_hash_table_remove(search_engines, name);
+        
         //g_free(orig_key); //segfault-a-licious!
         //g_free(orig_value); // segfault-a-licious!
     }
@@ -375,7 +377,8 @@ static void remove_search_engine(GtkWidget *widget, gpointer selection)
     //}
 
     // TODO: remove corresponding xml file
-    // user helper function from xml utils include
+    
+    if( search_engine_to_remove != NULL) delete_from_opensearch_files_dir(search_engine_to_remove->filename);
 
     g_free(name);
 }
