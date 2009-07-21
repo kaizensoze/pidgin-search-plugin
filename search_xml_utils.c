@@ -23,7 +23,7 @@
 // 	filename is name only, not path!
 // 	dir to use will be (linux)
 // 	~/.purple/opensearch_files/
-#define LINUX_PIDGIN_PREF_DIR "/home/ratjed/.purple/"	
+#define LINUX_PIDGIN_PREF_DIR g_strconcat(g_get_home_dir(), "/.purple/", NULL)
 #define LINUX_OPENSEARCH_FILES "opensearch_files/"
 // 	/usr/lib/pidgin/default_opensearch_files/
 #define LINUX_OPENSEARCH_FILES_DEFAULT "/usr/lib/pidgin/default_opensearch_files/"
@@ -72,7 +72,9 @@ void destroy_search_engine(gchar* key){
     }
     // TODO: remove corresponding xml file
     
-    if( search_engine_to_remove != NULL) delete_from_opensearch_files_dir(search_engine_to_remove->filename);
+    if (search_engine_to_remove != NULL) {
+        delete_from_opensearch_files_dir(search_engine_to_remove->filename);
+    }
     destroy_search_engine_struct(search_engine_to_remove);	
 }
 
@@ -128,7 +130,6 @@ gchar* get_url_with_params(xmlnode * child){
 	//return url;
 	
 		
-	
 	temp = xmlnode_get_child(temp, "Param");
 	while(temp != NULL ){
 		if(strcmp(xmlnode_get_attrib(temp,"value" ), "{searchTerms}") == 0 ){
@@ -253,6 +254,7 @@ void load_all_from_opensearch_files_dir(void){
 			temp_result = parse_opensearch( g_strconcat(LINUX_OPENSEARCH_FILES,temp_name, NULL) );
 			if(temp_result != NULL){
 				temp_result->filename = g_strdup(temp_name);
+                purple_debug_info(TEST_PLUGIN_ID, "filename: %s\n", temp_result->filename);
 			}
 			// put temp_result in the hash table
 			insert_search_engine(temp_result);
@@ -274,10 +276,10 @@ void load_all_from_opensearch_files_dir(void){
         purple_debug_info(TEST_PLUGIN_ID, "%s\n", eng->name);
         keys = keys->next;
     }*/
-    
 }
 
 static void insert_search_engine(search_engine *site) {	
+    
     gpointer orig_key, orig_value;
     const gchar *key, *temp;
     int u = 1;
@@ -309,7 +311,7 @@ static void insert_search_engine(search_engine *site) {
 */
 int delete_from_opensearch_files_dir(gchar *filename){
 	int result = -1;
-	result = g_remove(g_strconcat(LINUX_PIDGIN_PREF_DIR, LINUX_OPENSEARCH_FILES, filename,NULL) );
+	result = g_remove(g_strconcat(LINUX_PIDGIN_PREF_DIR, LINUX_OPENSEARCH_FILES, filename, NULL) );
 	return result;
 }
 
