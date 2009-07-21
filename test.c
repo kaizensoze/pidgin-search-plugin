@@ -864,10 +864,10 @@ static PurplePluginInfo info = {
     TEST_PLUGIN_ID,
 	N_("A Test"),
 	DISPLAY_VERSION, /* This constant is defined in config.h, but you shouldn't use it for
-		                your own plugins.  We use it here because it's our plugin. And we're lazy. */
+		                your own plugins. We use it here because it's our plugin and we too are lazy. */
 	N_("This is a test plugin."),
 	N_("This is a test plugin."),
-	"Joe Gallo",
+	"Joeff Gallotkin",
     PURPLE_WEBSITE,
 	plugin_load,
 	plugin_unload,

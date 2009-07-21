@@ -70,8 +70,8 @@ void destroy_search_engine(gchar* key){
         //g_free(orig_key); //segfault-a-licious!
         //g_free(orig_value); // segfault-a-licious!
     }
-    // TODO: remove corresponding xml file
     
+    // remove corresponding xml file
     if (search_engine_to_remove != NULL) {
         delete_from_opensearch_files_dir(search_engine_to_remove->filename);
     }
