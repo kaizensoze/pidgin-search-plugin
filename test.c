@@ -341,7 +341,7 @@ static void remove_search_engine(GtkWidget *widget, gpointer selection)
         }
         gtk_tree_path_free(path);
     }
-
+	/*
     gpointer orig_key, orig_value;
     if (g_hash_table_lookup_extended(search_engines, name, &orig_key, &orig_value)) {
         search_engine_to_remove =  g_hash_table_lookup(search_engines, name); 
@@ -349,7 +349,11 @@ static void remove_search_engine(GtkWidget *widget, gpointer selection)
         
         //g_free(orig_key); //segfault-a-licious!
         //g_free(orig_value); // segfault-a-licious!
-    }
+    }*/
+    
+    // deletes the entry in the hash table with the key 'key'. Deletes the XML file
+    // associated with the search. Frees the memory used by the search struct:
+    destroy_search_engine(name);
 
     // sanity check that engine was removed from hashtable
     engines = g_hash_table_get_values(search_engines);
@@ -374,11 +378,7 @@ static void remove_search_engine(GtkWidget *widget, gpointer selection)
     //    model = gtk_combo_box_get_model(combo_box);
     //    gtk_tree_model_foreach(model, check_combo_entry, name);
     //    conversations = conversations->next;
-    //}
-
-    // TODO: remove corresponding xml file
-    
-    if( search_engine_to_remove != NULL) delete_from_opensearch_files_dir(search_engine_to_remove->filename);
+    //}    
 
     g_free(name);
 }
@@ -579,7 +579,9 @@ static void add_widgets (MMConversation *mmconv)
         search_engine *eng;
         eng = engines->data;
         gtk_list_store_append(store, &iter);
-        gtk_list_store_set(store, &iter, 0, eng->name, -1);
+        //TODO display the shortname in the pulldown but get the value of the filename when
+        // the shortname is selected
+        gtk_list_store_set(store, &iter, 0, eng->filename, -1);
         engines = engines->next;
         count += 1;
     }
@@ -666,6 +668,7 @@ static gboolean plugin_unload(PurplePlugin *plugin)
 		g_object_set_data(G_OBJECT(gtkconv->entry), TEST_OBJECT_KEY, NULL);
 	}
 	*/
+	/*
     GHashTable *test;
 	search_engine *site;
     const gchar *key;
@@ -705,7 +708,7 @@ static gboolean plugin_unload(PurplePlugin *plugin)
     g_hash_table_destroy(test);
 
     // g_hash_table_destroy(search_engines);
-
+*/
 	return TRUE;
 }
 
@@ -734,7 +737,10 @@ static void load_config_active_list() {
         search_engine *eng;
         eng = engines->data;
         gtk_list_store_append(store, &iter);
-        gtk_list_store_set(store, &iter, LIST_ITEM, eng->name, -1);
+       // gtk_list_store_set(store, &iter, LIST_ITEM, eng->name, -1);
+        // TODO again we want to display the shortname and use the filename as the data
+        // like in an html select tag <option value="$filename">$name</option>
+        gtk_list_store_set(store, &iter, LIST_ITEM, eng->filename, -1);
         engines = engines->next;
     }
 
