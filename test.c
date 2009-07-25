@@ -37,7 +37,7 @@ enum {
 typedef struct {
 	PurpleConversation *conv; // pointer to the conversation 
 	GtkWidget *seperator; // seperator in the conversation 
-    GtkWidget *combo_box;
+        GtkWidget *combo_box;
 	GtkWidget *button; // button in the conversation 
 	GPid pid; // the pid of the score editor 
 	
@@ -73,6 +73,8 @@ static void open_url(const gchar *search_term, const gchar *selected_search_engi
      * The query urls associated with search engines will contain {search_term}
      * or something like that. A replace_string utility method will be needed
      * to replace the substring "{search_term}" with the actual search_term.
+     * NOTE: {search_term} could appear multiple times in the URL according to
+     * the opensearch specs.
      */
 	search_engine *se;
     se = g_hash_table_lookup(search_engines, selected_search_engine);
@@ -541,7 +543,7 @@ static void search_button_clicked (GtkWidget *widget, gpointer data)
     
     purple_debug_info(TEST_PLUGIN_ID, "search engine: %s\n", search_engine);
     purple_debug_info(TEST_PLUGIN_ID, "selected text: %s\n", text);
-
+   //purple_debug_info(TEST_PLUGIN_ID, "Combobox test: %d\n", ((GtkComboBox *)mmconv->combo_box)->active);
     open_url(text, search_engine);
 }
 
@@ -581,7 +583,7 @@ static void add_widgets (MMConversation *mmconv)
         gtk_list_store_append(store, &iter);
         //TODO display the shortname in the pulldown but get the value of the filename when
         // the shortname is selected
-        gtk_list_store_set(store, &iter, 0, eng->filename, -1);
+        gtk_list_store_set(store, &iter, 0, eng->filename, 1, eng->name, -1);
         engines = engines->next;
         count += 1;
     }
@@ -740,7 +742,7 @@ static void load_config_active_list() {
        // gtk_list_store_set(store, &iter, LIST_ITEM, eng->name, -1);
         // TODO again we want to display the shortname and use the filename as the data
         // like in an html select tag <option value="$filename">$name</option>
-        gtk_list_store_set(store, &iter, LIST_ITEM, eng->filename, -1);
+        gtk_list_store_set(store, &iter, LIST_ITEM, eng->filename, 1, eng->name, -1);
         engines = engines->next;
     }
 
