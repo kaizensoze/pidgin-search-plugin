@@ -25,6 +25,7 @@
 // 	~/.purple/opensearch_files/
 #define LINUX_PIDGIN_PREF_DIR g_strconcat(g_get_home_dir(), "/.purple/", NULL)
 #define LINUX_OPENSEARCH_FILES "opensearch_files/"
+#define LINUX_OPENSEARCH_ICONS "opensearch_icons/" 
 // 	/usr/lib/pidgin/default_opensearch_files/
 #define LINUX_OPENSEARCH_FILES_DEFAULT "/usr/lib/pidgin/default_opensearch_files/"
 // 	(windows)
@@ -146,6 +147,46 @@ gchar* get_url_with_params(xmlnode * child){
 			
 }
 
+char *
+purple_url_decode_malloc(const char *str)
+{
+	char *buf, *smaller_buf;
+	guint i, j = 0;
+	char *bum;
+	char hex[3];
+
+	g_return_val_if_fail(str != NULL, NULL);
+
+	
+	buf = malloc(strlen(str));
+
+	for (i = 0; i < strlen(str); i++) {
+
+		if (str[i] != '%')
+			buf[j++] = str[i];
+		else {
+			strncpy(hex, str + ++i, 2);
+			hex[2] = '\0';
+
+			/* i is pointing to the start of the number */
+			i++;
+
+			/*
+			 * Now it's at the end and at the start of the for loop
+			 * will be at the next character.
+			 */
+			buf[j++] = strtol(hex, NULL, 16);
+		}
+	}
+
+	buf[j] = '\0';
+
+	if (!g_utf8_validate(buf, -1, (const char **)&bum))
+		*bum = '\0';
+
+	return buf;
+}
+
 
 /*	
 	parse_opensearch
@@ -153,15 +194,20 @@ gchar* get_url_with_params(xmlnode * child){
 	@return the search_engine struct with URL information from the given opensearch file
 */
 static search_engine*
-parse_opensearch(gchar *opensearch_xml_filename)
-{	
-	//TODO if there is no ShortName use the longname, if there is no LongName or ShortName, invalid?
-	search_engine* result;
-	int buffer_len = 0;
-	gchar *url = "", *query_param  = "", *search_name = "";
-	xmlnode *child, *node, *temp;
+parse_opensearch(gchar *opensearch_xml_filename_1)
+{	//TODO if there is no ShortName use the longname, 
+        //if there is no LongName or ShortName, invalid?
+		
+	int 		img_h = 0, img_w = 0, buffer_len = 0;	
+	search_engine 	*result = NULL;		
+	gchar 		*opensearch_xml_filename = NULL, *url = "", *query_param  = "", 
+			*search_name = "",*img_xml_data = "", *img_url_decoded = NULL;
+	gsize 		*ret_len  = NULL; // for image size
+	guchar 		*img_binary = NULL;	
+	xmlnode 	*child = NULL, *node = NULL, *temp = NULL;
 	
-	//gchar *search_provider_path = "google_search-opensearch.xml";
+	opensearch_xml_filename = g_strconcat(LINUX_OPENSEARCH_FILES,opensearch_xml_filename_1, NULL);
+	
 	node = purple_util_read_xml_from_file(opensearch_xml_filename, _(opensearch_xml_filename));
 	
 	if(node == NULL) {
@@ -176,7 +222,7 @@ parse_opensearch(gchar *opensearch_xml_filename)
 		purple_debug_info(TEST_PLUGIN_ID, "the root node of the opensearch XML file should be 'SearchPlugin' but found '%s'\n", node->name);
 		return NULL;
 	}	
-	//child = xmlnode_get_child(node, "SearchPlugin");
+	
 	child = node;
 	
 	if (child != NULL){
@@ -220,14 +266,54 @@ parse_opensearch(gchar *opensearch_xml_filename)
 		}
 	} 
 	
-	//do a free from data created by purple_util_read_xml_from_file
+	child = node;
+	child = xmlnode_get_child(child, "Image");
+	img_h = xmlnode_get_attrib(child,"height" );
+	img_w = xmlnode_get_attrib(child,"width" );
+	
+	if(g_str_has_prefix(xmlnode_get_data(child), "data:image/x-icon;base64,") ){
+		img_xml_data = g_strdup(&xmlnode_get_data(child)[25]);
+		
+		img_url_decoded = g_strdup(purple_url_decode( img_xml_data ));
+		
+		if(img_url_decoded != NULL){
+			img_binary = purple_base64_decode(img_url_decoded, &ret_len);
+			//purple_debug_info(TEST_PLUGIN_ID,"icon test: %s\n",img_url_decoded );
+		} else {
+			img_binary = purple_base64_decode(img_xml_data, &ret_len);
+			//purple_debug_info(TEST_PLUGIN_ID,"icon test: %s\n",img_url_decoded );
+		}
+		//img_binary = purple_base64_decode(img_url_decoded, &ret_len);
+		
+		 /* purple_debug_info(TEST_PLUGIN_ID,"file save result: %d; path %s;\n", 
+			g_file_set_contents(g_strconcat(LINUX_PIDGIN_PREF_DIR,LINUX_OPENSEARCH_ICONS,opensearch_xml_filename_1,".icon",NULL),
+		 	&xmlnode_get_data(child)[24], strlen(&xmlnode_get_data(child)[24]),  NULL),
+		 	g_strconcat(LINUX_PIDGIN_PREF_DIR,LINUX_OPENSEARCH_ICONS,opensearch_xml_filename_1,".icon",NULL)
+		 ); */
+		/*if(img_url_decoded != NULL)g_file_set_contents(g_strconcat(LINUX_PIDGIN_PREF_DIR,LINUX_OPENSEARCH_ICONS,opensearch_xml_filename_1,".ico",NULL),
+		img_url_decoded,  strlen(img_url_decoded),  NULL);	*/ 
+		 if(img_binary != NULL){
+			 purple_debug_info(TEST_PLUGIN_ID,"file save result: %d; path %s;\n", 
+				g_file_set_contents(g_strconcat(LINUX_PIDGIN_PREF_DIR,LINUX_OPENSEARCH_ICONS,opensearch_xml_filename_1,".ico",NULL),
+			 	img_binary, ret_len,  NULL),		 	
+			 	g_strconcat(LINUX_PIDGIN_PREF_DIR,LINUX_OPENSEARCH_ICONS,opensearch_xml_filename_1,".ico",NULL)
+			 );
+		} else {
+			purple_debug_info(TEST_PLUGIN_ID,"count not do base64 decode on the search engines icon: %s\n",
+			opensearch_xml_filename_1);
+		}                                           
+	        
+	} else {
+		img_binary = NULL;
+	}
+	//do a free from data created by purple_util_read_xml_from_file ??
 	
 	// the items returned should be copies! the only reason the following will work
 	// is because the dom created by purple_util_read_xml_from_file remains in memory
 	result = malloc(sizeof(search_engine));
 	result->name = search_name;
 	result->query_url = url;
-	result->icon_url = NULL;
+	result->icon_url = g_strconcat(LINUX_PIDGIN_PREF_DIR,LINUX_OPENSEARCH_ICONS,opensearch_xml_filename_1,".ico",NULL);
 	return result;	
 }
 
@@ -251,7 +337,7 @@ void load_all_from_opensearch_files_dir(void){
 	temp_name = g_dir_read_name(opsdir);
 	while( temp_name != NULL ){		 
 		if(temp_name[0] != '.'){
-			temp_result = parse_opensearch( g_strconcat(LINUX_OPENSEARCH_FILES,temp_name, NULL) );
+			temp_result = parse_opensearch( temp_name );
 			if(temp_result != NULL){
 				temp_result->filename = g_strdup(temp_name);
                 purple_debug_info(TEST_PLUGIN_ID, "filename: %s\n", temp_result->filename);
