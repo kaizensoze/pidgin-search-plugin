@@ -369,7 +369,7 @@ static void insert_search_engine(search_engine *site) {
     gpointer orig_key, orig_value;
     const gchar *key, *temp;
     int u = 1;
-    site->icon_url = g_strdup("no_image"); // <- this string exists on the heap without using g_strdup
+    
     key = site->filename;
    
     /*while(g_hash_table_lookup_extended(search_engines, key, &orig_key, &orig_value)) {
