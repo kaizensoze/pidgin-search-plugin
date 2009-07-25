@@ -566,8 +566,12 @@ static void add_widgets (MMConversation *mmconv)
 	button = gtk_button_new();
 	gtk_button_set_relief(GTK_BUTTON(button), GTK_RELIEF_NONE);
 	g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(search_button_clicked), mmconv);
-	button_image_file_path = g_build_filename(DATADIR, "pixmaps", "purple", "buttons",
-										"search.png", NULL);
+	//button_image_file_path = g_build_filename(DATADIR, "pixmaps", "purple", "buttons",
+	//									"search.png", NULL);
+	button_image_file_path = g_build_filename("/", "home", "ratjed", 
+				".purple", "opensearch_icons", "search_icon.gif", NULL);
+	
+										
 	button_image = gtk_image_new_from_file(button_image_file_path);
 	g_free(button_image_file_path);
 	gtk_container_add((GtkContainer *)button, button_image);
