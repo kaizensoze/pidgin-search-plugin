@@ -78,7 +78,8 @@ static void open_url(const gchar *search_term, const gchar *selected_search_engi
      */
 	search_engine *se;
     se = g_hash_table_lookup(search_engines, selected_search_engine);
-    gchar *search_url = g_strconcat(se->query_url, search_term, NULL);
+    // added string replacement here:                           original:
+    gchar *search_url = search_string_replace(se, search_term);//g_strconcat(se->query_url, search_term, NULL);
     purple_debug_info(TEST_PLUGIN_ID, "search_term: %s\n", search_term);
     purple_notify_uri(NULL, search_url);
 }
@@ -568,8 +569,7 @@ static void add_widgets (MMConversation *mmconv)
 	g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(search_button_clicked), mmconv);
 	//button_image_file_path = g_build_filename(DATADIR, "pixmaps", "purple", "buttons",
 	//									"search.png", NULL);
-	button_image_file_path = g_build_filename("/", "home", "ratjed", 
-				".purple", "opensearch_icons", "search_icon.gif", NULL);
+	button_image_file_path = g_build_filename(LINUX_PIDGIN_PREF_DIR, LINUX_OPENSEARCH_ICONS, "search_icon.gif", NULL);
 	
 										
 	button_image = gtk_image_new_from_file(button_image_file_path);
@@ -587,7 +587,7 @@ static void add_widgets (MMConversation *mmconv)
         gtk_list_store_append(store, &iter);
         //TODO display the shortname in the pulldown but get the value of the filename when
         // the shortname is selected
-        gtk_list_store_set(store, &iter, 0, eng->filename, 1, eng->name, -1);
+        gtk_list_store_set(store, &iter, 0, eng->name, -1);
         engines = engines->next;
         count += 1;
     }
@@ -746,7 +746,7 @@ static void load_config_active_list() {
        // gtk_list_store_set(store, &iter, LIST_ITEM, eng->name, -1);
         // TODO again we want to display the shortname and use the filename as the data
         // like in an html select tag <option value="$filename">$name</option>
-        gtk_list_store_set(store, &iter, LIST_ITEM, eng->filename, 1, eng->name, -1);
+        gtk_list_store_set(store, &iter, LIST_ITEM, eng->name, -1);
         engines = engines->next;
     }
 
