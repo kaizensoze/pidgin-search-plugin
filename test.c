@@ -531,6 +531,9 @@ static void search_button_clicked (GtkWidget *widget, gpointer data)
 
     PidginConversation *gtkconv = PIDGIN_CONVERSATION(mmconv->conv);
 
+    GtkTreeModel *model;
+    GtkTreeIter iter;
+
     GtkTextIter start;
     GtkTextIter end;
 
@@ -540,7 +543,9 @@ static void search_button_clicked (GtkWidget *widget, gpointer data)
     gtk_text_buffer_get_selection_bounds(buffer, &start, &end);
     text = gtk_text_buffer_get_text(buffer, &start, &end, FALSE);
 
-    search_engine = gtk_combo_box_get_active_text(mmconv->combo_box);
+    gtk_combo_box_get_active_iter(mmconv->combo_box, &iter);
+    model = gtk_combo_box_get_model(mmconv->combo_box);
+    gtk_tree_model_get(model, &iter, 1, &search_engine, -1);
     
     purple_debug_info(TEST_PLUGIN_ID, "search engine: %s\n", search_engine);
     purple_debug_info(TEST_PLUGIN_ID, "selected text: %s\n", text);
@@ -558,7 +563,8 @@ static void add_widgets (MMConversation *mmconv)
 	GtkWidget *sep, *button, *button_image, *combo_box;
     GtkListStore *store;
     GtkTreeIter iter;
-    GtkCellRendererText *cell;
+    GtkCellRenderer *renderer;
+    GdkPixbuf *pixbuf1;
 	gchar *button_image_file_path;
 
 	sep = gtk_vseparator_new();
@@ -571,14 +577,13 @@ static void add_widgets (MMConversation *mmconv)
 	//									"search.png", NULL);
 	button_image_file_path = g_build_filename(LINUX_PIDGIN_PREF_DIR, LINUX_OPENSEARCH_ICONS, "search_icon.gif", NULL);
 	
-										
 	button_image = gtk_image_new_from_file(button_image_file_path);
 	g_free(button_image_file_path);
 	gtk_container_add((GtkContainer *)button, button_image);
 
     // setup combo box
     purple_debug_info(TEST_PLUGIN_ID, "setting up combo_box\n");
-    store = gtk_list_store_new(1, G_TYPE_STRING);
+    store = gtk_list_store_new(2, GDK_TYPE_PIXBUF, G_TYPE_STRING);
 
     engines = g_hash_table_get_values(search_engines);
     while (engines) {
@@ -587,18 +592,26 @@ static void add_widgets (MMConversation *mmconv)
         gtk_list_store_append(store, &iter);
         //TODO display the shortname in the pulldown but get the value of the filename when
         // the shortname is selected
-        gtk_list_store_set(store, &iter, 0, eng->name, -1);
+        pixbuf1 = gdk_pixbuf_new_from_file(
+                g_strconcat(LINUX_PIDGIN_PREF_DIR, LINUX_OPENSEARCH_ICONS, "ok.ico", NULL), // FIXME: replace with eng->icon_url
+                NULL);
+        gtk_list_store_set(store, &iter, 0, pixbuf1, 1, eng->name, -1);
         engines = engines->next;
         count += 1;
+        purple_debug_info(TEST_PLUGIN_ID, "%s\n", eng->icon_url);
     }
     g_list_free(engines);
 
     combo_box = gtk_combo_box_new_with_model(GTK_TREE_MODEL(store));
     g_object_unref(store);
 
-    cell = gtk_cell_renderer_text_new();
-    gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo_box), cell, TRUE);
-    gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo_box), cell, "text", 0, NULL);
+    renderer = gtk_cell_renderer_pixbuf_new();
+    gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo_box), renderer, FALSE);
+    gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo_box), renderer, "pixbuf", 0, NULL);
+
+    renderer = gtk_cell_renderer_text_new();
+    gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo_box), renderer, FALSE);
+    gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo_box), renderer, "text", 1, NULL);
 
     if (count > 0) {
         gtk_combo_box_set_active(combo_box, 0);
