@@ -592,8 +592,8 @@ static void add_widgets (MMConversation *mmconv)
         gtk_list_store_append(store, &iter);
         //TODO display the shortname in the pulldown but get the value of the filename when
         // the shortname is selected
-        pixbuf1 = gdk_pixbuf_new_from_file(
-                g_strconcat(LINUX_PIDGIN_PREF_DIR, LINUX_OPENSEARCH_ICONS, "ok.ico", NULL), // FIXME: replace with eng->icon_url
+        pixbuf1 = gdk_pixbuf_new_from_file(eng->icon_url,
+                //g_strconcat(LINUX_PIDGIN_PREF_DIR, LINUX_OPENSEARCH_ICONS, "ok.ico", NULL),
                 NULL);
         gtk_list_store_set(store, &iter, 0, pixbuf1, 1, eng->name, -1);
         engines = engines->next;
