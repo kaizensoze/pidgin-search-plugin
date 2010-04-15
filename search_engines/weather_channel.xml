@@ -1,0 +1,8 @@
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/" xmlns:ms="http://www.mozilla.org/2006/browser/search/">
+<ShortName>weather.com</ShortName>
+<Description>The Weather Channel</Description>
+<InputEncoding>ISO-8859-1</InputEncoding>
+<Image width="16" height="16">data:image/x-icon;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABmJLR0QA/wD/AP+gvaeTAAAACXBIWXMAAAsSAAALEgHS3X78AAAAB3RJTUUH0wERFhohaVToLAAAAsJJREFUeJyVkktonFUcxX//e+98M5NMMsmUSVtTyUNJtdJgfIDG+liIKK0K3XUn6k4ERbrStQvBhVAXLkQE3VVaLK7c1NIIYiu09uWDtCkmbdKMeTTf5Hvce/8uAhY3igcOhwNncTgcqb7ySd97Lz/2095d7XsDBkvkv1TFcH5u+ff3T8w8JIc+PnVkYvvYGzOX1vk/ePKBJsitY3L67IXucx+ldZxgrGCccN9QjRemBjh3NSUtlcmRHr49t8rscg4KMShaKkff2oXzrr8eSHFGUAVfRJZWCp4Y62XnYIIPyshghWMzHYwRfBGxFUOWe0AxghK9AmCdgMLCnwUraUCVLcaAogSvWGeIQTFWAHBVCowTjBGKzYCIEIPyy41NbqQeERhtNdnRX2FxwxOigkD0iiXivIJG5dXpFp08MjnaS9NETl5OaTcdj483+PJ0h/G7arz+bJsL8xkjLeGdzxeICC6opcwj+/bUGR9qMHcrx5fKU/dbfl3MsAT2PzJI7iMT7Sq388jE9joxzKMIrmoVEVDv6GyUXPmjS5I4pnf30S083bxkI0ayaMjKQLdQnBVkawJcULAVw9EfOngRri3mHHh4kA++XsA6wSKsd0tEYGW1l6vLOZfmutiKQVCcKogRxnbUafUrw+0qN1cy3n2xzYmza5QiWHVUK0Jf3ZF6Jfqt3QyK8VjKLLB3JOHI8Wu8tq/FwECVe3b2Uqs5Dh8YptGT8Obzw2zrq7C0llJLDAABg7F4jBUqNmH/o02++fk2B6cGyDxMjtY5M5uSGOXi/CaJMygJ07sbd34gKM4Jh7+Yo9Fjib8t8935Va7M54wOVVhcCziJfHaqgyoEVdY3AhohxIB8ePzizOWl6vRXZ1ZxW83wRcQl/3wc8LcvSuWlqSYPjtnv5e1Pf3x6z93bTpYUmDvZf0VUUJ9xffbmM38BojVPZb27sWcAAAAASUVORK5CYII=</Image>
+<ms:SearchForm>http://www.weather.com/</ms:SearchForm>
+<Url type="text/html" method="GET" template="http://www.weather.com/search/search?where={searchTerms}&amp;sourceid=mozilla-search"/>
+</OpenSearchDescription>
